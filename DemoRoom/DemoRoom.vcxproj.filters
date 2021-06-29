@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{a6b09ad2-7a83-4cac-a8ce-c8de15f3d584}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\algorithm">
+      <UniqueIdentifier>{8074756c-e7ba-4b9c-9f0e-debc846ab0c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\algorithm\b-tree">
+      <UniqueIdentifier>{733a1236-a3ea-4db8-8b87-70b6877f8797}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\algorithm\DP">
+      <UniqueIdentifier>{a090f8d8-998b-49c3-a622-976a215dc6d1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\skill">
+      <UniqueIdentifier>{7e133f80-9d98-4d84-b17e-e88cee1395e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\common">
+      <UniqueIdentifier>{68bc91cc-8a95-460a-b0cf-1e9117d83fa4}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\algorithm\b-tree\BTree.cpp">
+      <Filter>src\algorithm\b-tree</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\algorithm\DP\Solution.cpp">
+      <Filter>src\algorithm\DP</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\algorithm\b-tree\BTree.h">
+      <Filter>src\algorithm\b-tree</Filter>
+    </ClInclude>
+    <ClInclude Include="src\algorithm\DP\Solution.h">
+      <Filter>src\algorithm\DP</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\Base.h">
+      <Filter>src\common</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="src\algorithm\DP\Readme.txt">
+      <Filter>src\algorithm\DP</Filter>
+    </Text>
+    <Text Include="src\skill\Readme.txt">
+      <Filter>src\skill</Filter>
+    </Text>
+  </ItemGroup>
+</Project>
