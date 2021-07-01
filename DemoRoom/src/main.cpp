@@ -12,4 +12,9 @@ int main()
 	int c[] = { 1,2,5 };
 	result = coins->CoinChange_DownTop(c, sizeof(c)/sizeof(int), 11);
 	std::cout << "coins 11 = " << result << std::endl;
+
+	Scope<DP::EditDistance> distance = CreateScope< DP::EditDistance>(std::string("intention"), std::string("execution"));
+	result = distance->MinDistance_DownTop();
+	std::cout << "min distance = " << result << std::endl;
+
 }

@@ -1,7 +1,10 @@
 #pragma once
 
 #include <vector>
+#include <map>
 #include <limits>
+#include <algorithm>
+#include <string>
 
 namespace DP
 {
@@ -183,5 +186,138 @@ namespace DP
 		}
 	public:
 		~Coins();
+	};
+
+
+	//************
+	//* 凑零钱问题 *
+	//************
+	class EditDistance
+	{
+	public:
+		EditDistance(std::string & _s1, std::string & _s2);
+	public:
+		// 题目：
+		// 给你两个单词word1和word2，请你计算出将word1转换成word2所使用的最少操作数。
+		// 你可以对一个单词进行如下三种操作
+		// 1. 插入一个字符
+		// 2. 删除一个字符
+		// 3. 替换一个字符
+		// 例：
+		// 输入：word1 = "horse" word2 = "ros"
+		// 输出：3
+		// 解释：
+		// horse -> rorse（将'h'替换为'r'）
+		// rorse -> rose（删除'r'）
+		// rose	 -> ros （删除'e'）
+
+		std::string s1, s2;
+
+		// ---------------------------------------
+		// 1、暴力递归
+		// ---------------------------------------
+		int MinDistance()
+		{
+			auto len1 = s1.size();
+			auto len2 = s2.size();
+			// 定义：dp(i, j) 返回s1[0..i]和s2[0..j]的最小编辑距离
+			// len1-1：s1的最后一个字符的位置
+			// len2-1：s2的最后一个字符的位置
+			return dp(len1-1, len2-1);
+		}
+
+		int dp(int i, int j)
+		{
+			// base case 即出口
+			if (i == -1) return j + 1;
+			if (j == -1) return i + 1;
+
+			if (s1[i] == s2[j])
+				return dp(i - 1, j - 1);		// 啥都不做
+			else
+				return std::min({
+					dp(i, j - 1) + 1,			// 表示插入
+					dp(i - 1, j) + 1,			// 表示删除
+					dp(i - 1, j - 1) + 1		// 表示替换
+					});
+		}
+
+		// ---------------------------------------
+		// 2、带备忘录的递归
+		// ---------------------------------------
+		std::map<std::pair<int, int>, int> dict;
+
+		int MinDistance_Memo()
+		{
+			auto len1 = s1.size();
+			auto len2 = s2.size();
+			// 定义：dp(i, j) 返回s1[0..i]和s2[0..j]的最小编辑距离
+			// len1-1：s1的最后一个字符的位置
+			// len2-1：s2的最后一个字符的位置
+			return dp_memo(len1 - 1, len2 - 1);
+		}
+
+		int dp_memo(int i, int j)
+		{
+			// base case 即出口
+			if (i == -1) return j + 1;
+			if (j == -1) return i + 1;
+
+			auto& ite = dict.find(std::pair<int, int>(i, j));
+			if (ite != dict.end())
+				return ite->second;
+			if (s1[i] == s2[j])
+				dict[std::pair<int, int>(i, j)] = dp(i - 1, j - 1);		// 啥都不做
+			else
+				dict[std::pair<int, int>(i, j)] = std::min({
+					dp(i, j - 1) + 1,									// 表示插入
+					dp(i - 1, j) + 1,									// 表示删除
+					dp(i - 1, j - 1) + 1								// 表示替换
+					});
+			return dict[std::pair<int, int>(i, j)];
+		}
+
+		// ---------------------------------------
+		// 3、自底向上迭代解法
+		// ---------------------------------------
+		int MinDistance_DownTop()
+		{
+			int m = s1.size();
+			int n = s2.size();
+
+			// 定义：dp[i][j] 返回s1[0..i-1]和s2[0..j-1]的最小编辑距离
+			int **dp = (int **)malloc(sizeof(int *) * (m+1));
+			for (int i = 0; i <= m; ++i)
+			{
+				dp[i] = (int *)malloc(sizeof(int) * (n+1));
+			}
+
+			// base case
+			for (int i = 1; i <= m; i++) dp[i][0] = i;
+			for (int j = 1; j <= n; j++) dp[0][j] = j;
+			dp[0][0] = 0;
+
+			// 自底向上求解
+			for (int i = 1; i <= m; i++) {
+				for (int j = 1; j <= n; j++) {
+					if (s1[i - 1] == s2[j - 1])
+						dp[i][j] = dp[i - 1][j - 1];		// 啥都不做
+					else 
+						dp[i][j] = std::min({
+							dp[i][j - 1] + 1,				// 表示插入
+							dp[i - 1][j] + 1,				// 表示删除
+							dp[i - 1][j - 1] + 1			// 表示替换
+							});
+				}
+			}
+
+			int result = dp[m][n];
+			for (int i = 0; i <= m; ++i)
+				free(dp[i]);
+			free(dp);
+
+			return result;
+		}
+
 	};
 }

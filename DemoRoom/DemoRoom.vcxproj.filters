@@ -1,53 +1,51 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="src">
-      <UniqueIdentifier>{a6b09ad2-7a83-4cac-a8ce-c8de15f3d584}</UniqueIdentifier>
+    <Filter Include="algorithm">
+      <UniqueIdentifier>{ECB2EEC4-581D-A33B-A15B-54E10D058190}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\algorithm">
-      <UniqueIdentifier>{8074756c-e7ba-4b9c-9f0e-debc846ab0c1}</UniqueIdentifier>
+    <Filter Include="algorithm\DP">
+      <UniqueIdentifier>{6FAC4B28-5B0F-DBCC-0495-1383F0D6A64F}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\algorithm\b-tree">
-      <UniqueIdentifier>{733a1236-a3ea-4db8-8b87-70b6877f8797}</UniqueIdentifier>
+    <Filter Include="algorithm\b-tree">
+      <UniqueIdentifier>{7A43DDC9-663C-FC1B-8F6E-E1A07BC6DB27}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\algorithm\DP">
-      <UniqueIdentifier>{a090f8d8-998b-49c3-a622-976a215dc6d1}</UniqueIdentifier>
+    <Filter Include="common">
+      <UniqueIdentifier>{AEFEE3F6-9AA0-0ECD-835B-22216F9C951D}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\skill">
-      <UniqueIdentifier>{7e133f80-9d98-4d84-b17e-e88cee1395e4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\common">
-      <UniqueIdentifier>{68bc91cc-8a95-460a-b0cf-1e9117d83fa4}</UniqueIdentifier>
+    <Filter Include="skill">
+      <UniqueIdentifier>{352399ed-7e84-4832-bde4-1c27775ff38d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\algorithm\b-tree\BTree.cpp">
-      <Filter>src\algorithm\b-tree</Filter>
-    </ClCompile>
-    <ClCompile Include="src\main.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\algorithm\DP\Solution.cpp">
-      <Filter>src\algorithm\DP</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\algorithm\b-tree\BTree.h">
-      <Filter>src\algorithm\b-tree</Filter>
-    </ClInclude>
     <ClInclude Include="src\algorithm\DP\Solution.h">
-      <Filter>src\algorithm\DP</Filter>
+      <Filter>algorithm\DP</Filter>
+    </ClInclude>
+    <ClInclude Include="src\algorithm\b-tree\BTree.h">
+      <Filter>algorithm\b-tree</Filter>
     </ClInclude>
     <ClInclude Include="src\common\Base.h">
-      <Filter>src\common</Filter>
+      <Filter>common</Filter>
     </ClInclude>
+    <ClInclude Include="src\skill\Skill.h">
+      <Filter>skill</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\algorithm\DP\Solution.cpp">
+      <Filter>algorithm\DP</Filter>
+    </ClCompile>
+    <ClCompile Include="src\algorithm\b-tree\BTree.cpp">
+      <Filter>algorithm\b-tree</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\algorithm\DP\Readme.txt">
-      <Filter>src\algorithm\DP</Filter>
+      <Filter>algorithm\DP</Filter>
     </Text>
     <Text Include="src\skill\Readme.txt">
-      <Filter>src\skill</Filter>
+      <Filter>skill</Filter>
     </Text>
   </ItemGroup>
 </Project>

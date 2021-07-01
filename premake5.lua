@@ -55,10 +55,10 @@ project "DemoRoom"
 		optimize "on"
 
 	filter {"system:windows","configurations:Debug"}
-		buildoptions "/MDd"
+		buildoptions "/MTd"
 
 	filter {"system:windows","configurations:Release"}
-		buildoptions "/MD"
+		buildoptions "/MT"
 
 	filter {"system:windows","configurations:Dist"}
-		buildoptions "/MD"
+		buildoptions "/MT"
