@@ -1,0 +1,8 @@
+// 在文件中查找匹配的字符串
+grep kmalloc_caches -r &
+grep kmalloc_caches -r *
+// 查看 mm/slab_common.c 中的
+static void __init new_kmalloc_cache(int idx, unsigned long flags)
+void __init create_kmalloc_caches(unsigned long flags)
+// 查看内核中所有的高速缓存
+cat /proc/slabinfo
