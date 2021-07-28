@@ -14,7 +14,10 @@
       <UniqueIdentifier>{AEFEE3F6-9AA0-0ECD-835B-22216F9C951D}</UniqueIdentifier>
     </Filter>
     <Filter Include="skill">
-      <UniqueIdentifier>{352399ed-7e84-4832-bde4-1c27775ff38d}</UniqueIdentifier>
+      <UniqueIdentifier>{A47B5C10-1090-84C1-D911-282145E580F2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="asm">
+      <UniqueIdentifier>{ad60a385-90e8-4b08-8dd7-372a17cb9162}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -41,11 +44,8 @@
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="src\algorithm\DP\Readme.txt">
-      <Filter>algorithm\DP</Filter>
-    </Text>
-    <Text Include="src\skill\Readme.txt">
-      <Filter>skill</Filter>
-    </Text>
+    <None Include="amd64xx.asm">
+      <Filter>asm</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DemoRoom", "DemoRoom\DemoRoom.vcxproj", "{679833A2-5365-8EAD-7C7E-7C5568AAC33B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CommonDll", "CommonDll\CommonDll.vcxproj", "{6AB71DAC-D621-D222-1F60-83C88B09B077}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -16,6 +18,12 @@ Global
 		{679833A2-5365-8EAD-7C7E-7C5568AAC33B}.Dist|x64.Build.0 = Dist|x64
 		{679833A2-5365-8EAD-7C7E-7C5568AAC33B}.Release|x64.ActiveCfg = Release|x64
 		{679833A2-5365-8EAD-7C7E-7C5568AAC33B}.Release|x64.Build.0 = Release|x64
+		{6AB71DAC-D621-D222-1F60-83C88B09B077}.Debug|x64.ActiveCfg = Debug|x64
+		{6AB71DAC-D621-D222-1F60-83C88B09B077}.Debug|x64.Build.0 = Debug|x64
+		{6AB71DAC-D621-D222-1F60-83C88B09B077}.Dist|x64.ActiveCfg = Dist|x64
+		{6AB71DAC-D621-D222-1F60-83C88B09B077}.Dist|x64.Build.0 = Dist|x64
+		{6AB71DAC-D621-D222-1F60-83C88B09B077}.Release|x64.ActiveCfg = Release|x64
+		{6AB71DAC-D621-D222-1F60-83C88B09B077}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
