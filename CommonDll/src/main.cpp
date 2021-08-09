@@ -15,9 +15,9 @@ extern "C"
 		return a + b;
 	}
 
-	EXPORT_DLL int exprot_test_str(const WCHAR* s, BOOL quietErrors = FALSE, void* fpv = NULL)
+	EXPORT_DLL BOOL ExecuteMAXScriptScript(const WCHAR* s, BOOL quietErrors = FALSE, void* fpv = NULL)
 	{
-		return 666;
+		return TRUE;
 	}
 }
 

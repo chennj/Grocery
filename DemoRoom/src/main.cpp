@@ -45,10 +45,11 @@ int main()
 	std::cout << "min distance = " << result << std::endl;
 #endif
 
-	typedef int(*DLL_FUNC_1)(const WCHAR* s, BOOL quietErrors, void* fpv);
+	typedef BOOL(*DLL_FUNC_1)(const WCHAR* s, BOOL quietErrors, void* fpv);
 
-	wchar_t path[] = L"D:\\vs2015\\Grocery\\bin\\Debug-windows-x86_64\\CommonDll\\CommonDll.dll";
+	//wchar_t path[] = L"D:\\vs2015\\Grocery\\bin\\Debug-windows-x86_64\\CommonDll\\CommonDll.dll";
 	//wchar_t path[] = L"D:\\vs2015\\WechatHookDll\\x64\\Debug\\EasyHook.dll";
+	wchar_t path[] = L"Maxscrpt.dll";
 	//必须同一目录，否则绝对路径
 	//wchar_t path[] = L"CommonDll.dll";
 	HMODULE hmod = LoadLibraryEx(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
@@ -58,10 +59,11 @@ int main()
 	}
 	//std::cout << "基地址：" << static_cast <const  void  *>(hmod) << std::endl;
 
-	DLL_FUNC_1 func_1 = (DLL_FUNC_1)::GetProcAddress(hmod, "exprot_test_str");
+	DLL_FUNC_1 func_1 = (DLL_FUNC_1)::GetProcAddress(hmod, "ExecuteMAXScriptScript");
 	if (!func_1) {
 		std::cout << "没有exprot_test_str这个函数。" << std::endl;
 		FreeLibrary(hmod);
+		system("PAUSE");
 		return 0;
 	}
 	//std::cout << "func_1地址：" << func_1 << ";" << (DWORD)func_1 << std::endl;
