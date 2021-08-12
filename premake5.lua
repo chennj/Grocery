@@ -14,6 +14,17 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 -- Import ---------------------------------------
 
 -- ---------------------------------------------------
+-- 定义函数，包含三方库头文件，可被其他工程调用
+function include3DMAX()
+	includedirs "D:/写意公司/3ds Max 2014 SDK/include"
+end
+-- 定义函数，链接三方库
+function link3DMAX()
+	-- 指定lib的文件路径
+	libdirs "D:/写意公司/3ds Max 2014 SDK/lib/x64/Release"
+	-- 指定lib文件名，Maxscrpt.lib，此处使用的是动态库
+	links "Maxscrpt"
+end
 
 project "DemoRoom"
 	location "DemoRoom"
@@ -25,6 +36,9 @@ project "DemoRoom"
 	targetdir("bin/" .. outputdir .. "/%{prj.name}")
 	objdir("temp/" .. outputdir .. "/%{prj.name}")
 
+	include3DMAX()
+	link3DMAX()
+	
 	files
 	{
 		"%{prj.name}/src/**.h",

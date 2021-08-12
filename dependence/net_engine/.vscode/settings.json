@@ -2,6 +2,8 @@
     "files.associations": {
         "chrono": "cpp",
         "thread": "cpp",
-        "list": "cpp"
+        "list": "cpp",
+        "map": "cpp",
+        "functional": "cpp"
     }
 }

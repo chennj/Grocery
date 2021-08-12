@@ -45,14 +45,16 @@ int main()
 	std::cout << "min distance = " << result << std::endl;
 #endif
 
-	typedef BOOL(*DLL_FUNC_1)(const WCHAR* s, BOOL quietErrors, void* fpv);
+	typedef BOOL(*DLL_FUNC_1)(const wchar_t* s, BOOL quietErrors, void* fpv);
 
 	//wchar_t path[] = L"D:\\vs2015\\Grocery\\bin\\Debug-windows-x86_64\\CommonDll\\CommonDll.dll";
 	//wchar_t path[] = L"D:\\vs2015\\WechatHookDll\\x64\\Debug\\EasyHook.dll";
-	wchar_t path[] = L"Maxscrpt.dll";
+	//wchar_t path[] = L"D:\\写意公司\\3ds Max 2014 SDK\\lib\\x64\\Release\\";
+	wchar_t path[] = L"D:\\写意公司\\3ds Max 2014 SDK\\lib\\x64\\Release\\Maxscrpt.dll";
 	//必须同一目录，否则绝对路径
 	//wchar_t path[] = L"CommonDll.dll";
-	HMODULE hmod = LoadLibraryEx(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+	//HMODULE hmod = LoadLibraryEx(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+	HMODULE hmod = LoadLibraryW(path);
 	if (!hmod) {
 		std::cout << "加载DLL失败，退出。" << std::endl;
 		return 0;

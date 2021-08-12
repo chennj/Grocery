@@ -70,3 +70,27 @@ CRCNetWork::make_reuseaddr(SOCKET fd)
     }
     return 0;    
 }
+
+int
+CRCNetWork::make_nodelay(SOCKET fd)
+{
+    int flag = 1;
+    if (SOCKET_ERROR == setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const char *)&flag, sizeof(flag))) {
+        CRCLog_Warring("setsockopt socket<%d> IPPROTO_TCP TCP_NODELAY failed", (int)fd);
+        return SOCKET_ERROR;
+    }
+    return 0;
+}
+
+int 
+CRCNetWork::destorySocket(SOCKET sockfd)
+{
+#ifdef _WIN32
+    int ret = closesocket(sockfd);
+#else
+    int ret = close(sockfd);
+#endif
+    if(ret < 0)
+        CRCLog_PError("destory sockfd<%d>",(int)sockfd);
+    return ret;    
+}
