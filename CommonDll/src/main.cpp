@@ -6,6 +6,8 @@
 #define EXPORT_DLL
 #endif
 
+#include <ifnpub.h>
+
 extern "C"
 {
 	// ------------------------ test ------------------------------------------
@@ -15,10 +17,11 @@ extern "C"
 		return a + b;
 	}
 
-	EXPORT_DLL BOOL ExecuteMAXScriptScript(const wchar_t* s, BOOL quietErrors = FALSE, void* fpv = NULL)
+	EXPORT_DLL BOOL ExecuteMAXScriptScript(const MCHAR* s, BOOL quietErrors, FPValue* fpv)
 	{
-		return TRUE;
+		return true;
 	}
+
 }
 
 namespace Hook

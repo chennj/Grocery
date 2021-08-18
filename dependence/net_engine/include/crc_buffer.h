@@ -12,17 +12,17 @@ private:
 	//可以用链表或队列来管理缓冲数据块
 	//list<char*> _pBuffList;
 	//缓冲区的数据尾部位置，已有数据长度
-	int _nLast = 0;
+	unsigned int _nLast = 0;
 	//缓冲区总的空间大小，字节长度
-	int _nSize = 0;
+	unsigned int _nSize = 0;
 	//缓冲区写满次数计数
-	int _fullCount = 0;
+	unsigned int _fullCount = 0;
 #ifdef CELL_USE_IOCP
 	IO_DATA_BASE _ioData = {};
 #endif // CELL_USE_IOCP
 
 public:
-	CRCBuffer(int nSize = 8192);
+	CRCBuffer(unsigned int nSize = 8192);
 	~CRCBuffer();
 
 public:

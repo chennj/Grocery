@@ -89,6 +89,9 @@ project "CommonDll"
 	targetdir("bin/" .. outputdir .. "/%{prj.name}")
 	objdir("temp/" .. outputdir .. "/%{prj.name}")
 
+	include3DMAX()
+	link3DMAX()
+
 	files
 	{
 		"%{prj.name}/src/**.h",

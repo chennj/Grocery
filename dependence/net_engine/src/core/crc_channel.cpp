@@ -1,12 +1,12 @@
 #include "../../include/crc_channel.h"
 
 CRCChannel::CRCChannel(SOCKET sockfd, int sendSize, int recvSize):
+    _sockfd(sockfd),
     _sendBuff(sendSize),
     _recvBuff(recvSize)
 {
     static int n = 1;
     id = n++;
-    _sockfd = sockfd;
 
     resetDTHeart();
     resetDTSend();

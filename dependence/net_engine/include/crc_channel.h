@@ -28,10 +28,10 @@ public:
 private:
 	// socket fd_set  file desc set
 	SOCKET _sockfd;
-	//第二缓冲区 接收消息缓冲区
-	CRCBuffer _recvBuff;
 	//发送缓冲区
 	CRCBuffer _sendBuff;
+	//第二缓冲区 接收消息缓冲区
+	CRCBuffer _recvBuff;
 	//心跳死亡计时
 	time_t _dtHeart;
 	//上次发送消息数据的时间 

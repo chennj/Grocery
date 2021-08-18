@@ -4,6 +4,7 @@
         "thread": "cpp",
         "list": "cpp",
         "map": "cpp",
-        "functional": "cpp"
+        "functional": "cpp",
+        "utility": "cpp"
     }
 }

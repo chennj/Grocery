@@ -37,9 +37,10 @@ public:
 		cmd = CMD_LOGIN;
 	}
 
-	char username[32];
-	char password[32];
-	char data[100 - 68];
+	char userName[32];
+	char PassWord[32];
+	char data[28];
+	int msgID;
 };
 
 struct LoginR : public CRCDataHeader

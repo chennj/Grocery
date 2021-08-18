@@ -1,6 +1,6 @@
 #include "../../include/crc_buffer.h"
 
-CRCBuffer::CRCBuffer(int nSize)
+CRCBuffer::CRCBuffer(unsigned int nSize)
 {
     	_nSize = nSize;
 		_pBuff = new char[_nSize];
@@ -57,11 +57,24 @@ CRCBuffer::push(const char* pData, int nLen)
 void 
 CRCBuffer::pop(int nLen)
 {
+    if (nLen <= 0)
+    {
+        CRCLog_Warring("CRCBuffer::pop nLen<%d> less than 0", nLen);
+        return;
+    }
+
     int n = _nLast - nLen;
+    if (n < 0)
+    {
+        CRCLog_Warring("CRCBuffer::pop nLen<%d> greater or equal than _nLast<%d>", nLen,_nLast);
+        return;
+    }
+
     if (n > 0)
     {
         memcpy(_pBuff, _pBuff + nLen, n);
     }
+
     _nLast = n;
     if (_fullCount > 0)
         --_fullCount;
@@ -81,14 +94,18 @@ CRCBuffer::write2socket(SOCKET sockfd)
             CRCLog_PError("write2socket1:sockfd<%d> nSize<%d> nLast<%d> ret<%d>", sockfd, _nSize, _nLast, ret);
             return SOCKET_ERROR;
         }
-        if (ret == _nLast)
-        {//_nLast=2000 实际发送ret=2000
+
+        unsigned int absret = abs(ret);
+        if (absret == _nLast)
+        //_nLast=2000 实际发送ret=2000
+        {
             //数据尾部位置清零
             _nLast = 0;
         }
-        else {
-            //_nLast=2000 实际发送ret=1000
-            //CRCLog_Info("write2socket2:sockfd<%d> nSize<%d> nLast<%d> ret<%d>", sockfd, _nSize, _nLast, ret);
+        else 
+        //_nLast=2000 实际发送ret=1000
+        {
+             //CRCLog_Info("write2socket2:sockfd<%d> nSize<%d> nLast<%d> ret<%d>", sockfd, _nSize, _nLast, ret);
             _nLast -= ret;
             memcpy(_pBuff, _pBuff + ret, _nLast);
         }

@@ -4,6 +4,8 @@
 
 #include "crc_task_server.h"
 #include <ctime>
+#include <errno.h>
+#include <string.h>
 
 class CRCLog
 {
@@ -63,9 +65,9 @@ public:
 		//
 		if (hasDate)
 		{
-			auto t = system_clock::now();
-			auto tNow = system_clock::to_time_t(t);
-			std::tm* now = std::localtime(&tNow);
+			auto t 			= std::chrono::system_clock::now();
+			auto tNow 		= std::chrono::system_clock::to_time_t(t);
+			std::tm* now 	= std::localtime(&tNow);
 			sprintf(logPath, "%s[%d-%d-%d_%d-%d-%d].txt", logName, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
 		}else {
 			sprintf(logPath, "%s.txt", logName);
@@ -175,8 +177,8 @@ public:
 		CRCLog* pLog = &Instance();
 		if (pLog->_logFile)
 		{
-			auto t = system_clock::now();
-			auto tNow = system_clock::to_time_t(t);
+			auto t 		= std::chrono::system_clock::now();
+			auto tNow 	= std::chrono::system_clock::to_time_t(t);
 			//fprintf(pLog->_logFile, "%s", ctime(&tNow));
 			std::tm* now = std::localtime(&tNow);
 			if (type)
