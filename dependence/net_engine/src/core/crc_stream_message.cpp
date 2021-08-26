@@ -1,4 +1,4 @@
-#include "../../include/crc_stream_message.h"
+#include "../../include/core/crc_stream_message.h"
 
 ///////////////////////////////////////////////////////////////////////////
 // reader 

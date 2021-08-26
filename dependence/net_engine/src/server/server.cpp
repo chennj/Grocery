@@ -1,6 +1,8 @@
-#include "../../include/crc_boss_epoll_server.h"
-#include "../../include/crc_stream_message.h"
-#include "../../include/crc_config.h"
+#include "../../include/core/crc_boss_epoll_server.h"
+#include "../../include/core/crc_stream_message.h"
+#include "../../include/core/crc_config.h"
+
+#define _DEBUG
 
 class CRCServer : public CRCBossEpollServer
 {

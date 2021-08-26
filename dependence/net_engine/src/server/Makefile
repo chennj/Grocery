@@ -1,5 +1,5 @@
-SRC 	= src
-INCLUDE = -I include
+SRC 	= ../../src
+INCLUDE = -I ../../include
 
 CXX		= g++
 LIBS	= -lpthread

@@ -1,4 +1,4 @@
-#include "../../include/crc_stream.h"
+#include "../../include/core/crc_stream.h"
 
 CRCStream::CRCStream(int nSize)
 {

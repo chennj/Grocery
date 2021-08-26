@@ -1,4 +1,4 @@
-#include "../../include/crc_net_work.h"
+#include "../../include/core/crc_net_work.h"
 
 CRCNetWork::CRCNetWork()
 {

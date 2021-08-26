@@ -1,4 +1,4 @@
-#include "../../include/crc_channel.h"
+#include "../../include/core/crc_channel.h"
 
 CRCChannel::CRCChannel(SOCKET sockfd, int sendSize, int recvSize):
     _sockfd(sockfd),

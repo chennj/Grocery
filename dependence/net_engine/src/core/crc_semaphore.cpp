@@ -1,4 +1,4 @@
-#include "../../include/crc_semaphore.h"
+#include "../../include/core/crc_semaphore.h"
 
 void 
 CRCSemaphore::wait()

@@ -1,4 +1,4 @@
-#include "../../include/crc_boss_server.h"
+#include "../../include/core/crc_boss_server.h"
 
 CRCBossServer::CRCBossServer()
 {

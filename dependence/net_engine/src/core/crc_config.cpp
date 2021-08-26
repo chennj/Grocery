@@ -1,4 +1,4 @@
-#include "../../include/crc_config.h"
+#include "../../include/core/crc_config.h"
 
 CRCConfig::CRCConfig(){}
 
@@ -17,6 +17,7 @@ CRCConfig::Init(int argc, char* args[])
     _exePath = args[0];
     for (int n = 1; n < argc; n++)
     {
+        //CRCLog::Debug("Config Parameters: argc<%d>,args<%s>",n,args[n]);
         madeCmd(args[n]);
     }    
 }

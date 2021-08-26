@@ -1,4 +1,4 @@
-#include "../../include/crc_buffer.h"
+#include "../../include/core/crc_buffer.h"
 
 CRCBuffer::CRCBuffer(unsigned int nSize)
 {

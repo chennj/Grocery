@@ -1,4 +1,4 @@
-#include "../../include/crc_work_server.h"
+#include "../../include/core/crc_work_server.h"
 
 CRCWorkServer::~CRCWorkServer()
 {

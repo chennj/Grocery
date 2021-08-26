@@ -1,4 +1,4 @@
-#include "../../include/crc_thread.h"
+#include "../../include/core/crc_thread.h"
 
 void
 CRCThread::Sleep(time_t dt)
