@@ -43,7 +43,7 @@ CRCMysqlConnPool::GetMinConnCnt()
 }
 
 int
-CRCMysqlConnPool::GetMinConnCnt()
+CRCMysqlConnPool::GetMaxConnCnt()
 {
     return _MaxConnCnt;
 }

@@ -1,11 +1,10 @@
-#include "../../include/mysql/crc_mysql_conn.h"
 #include "../../include/mysql/crc_mysql_pool_conn.h"
 #include "../../include/mysql/crc_mysql_resultset.h"
 #include "../../include/core/crc_log.h"
 
-CRCMysqlConn::CRCMysqlConn(CRCMysqlConnPool * pool)
+CRCMysqlConn::CRCMysqlConn(CRCConnPool<CRCMysqlConn> * pool)
 {
-    _conn_pool = pool;
+    _conn_pool = (CRCMysqlConnPool*)pool;
     _mysql = NULL;
 }
 
@@ -90,15 +89,14 @@ CRCMysqlConn::ExecuteUpdate(const char* sql, bool care_affected_rows /*= true*/)
 	mysql_ping(_mysql);
 	if (mysql_real_query(_mysql, sql, strlen(sql)))
 	{
-		 CRCLog::Error("CRCMysqlConn::ExecuteUpdate mysql_real_query failed, %s\n%s", mysql_error(_mysql),sql);
+		CRCLog::Error("CRCMysqlConn::ExecuteUpdate mysql_real_query failed, %s\n%s", mysql_error(_mysql),sql);
 		return false;
 	}
 
 	if (mysql_affected_rows(_mysql) >0)
 	{
-		return 0;
+		return true;
 	}
-
 
 	if (care_affected_rows)
 	{

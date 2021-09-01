@@ -64,8 +64,8 @@ CRCPrepareStatement::Update()
         return false;
     }
 
-    if (mysql_stmt_execute(_stmt)){
-        CRCLog::Error("CRCPrepareStatement::Update mysql_stmt_execute failed\n%s",mysql_stmt_error(_stmt));
+    if (int i = mysql_stmt_execute(_stmt)){
+        CRCLog::Error("CRCPrepareStatement::Update mysql_stmt_execute failed:%d\n%s",i,mysql_stmt_error(_stmt));
         return false;
     }
 
@@ -77,14 +77,14 @@ CRCPrepareStatement::Update()
     return true;
 }
 
-u_int32_t
+uint32_t
 CRCPrepareStatement::GetInsertId()
 {
     return mysql_stmt_insert_id(_stmt);
 }
 
 void
-CRCPrepareStatement::SetParam(u_int32_t index, int & value)
+CRCPrepareStatement::SetParam(uint32_t index, int & value)
 {
     if (index > _param_cnt){
         CRCLog::Error("CRCPrepareStatement::SetParam index too large: %d",index);
@@ -96,19 +96,19 @@ CRCPrepareStatement::SetParam(u_int32_t index, int & value)
 }
 
 void
-CRCPrepareStatement::SetParam(u_int32_t index, u_int8_t  & value)
+CRCPrepareStatement::SetParam(uint32_t index, uint8_t & value)
 {
 	if (index > _param_cnt)
 	{
         CRCLog::Error("CRCPrepareStatement::SetParam index too large: %d",index);
 		return;
 	}
-	_param_bind[index].buffer_type = MYSQL_TYPE_STRING;
-	_param_bind[index].buffer = (char*)value;
+	_param_bind[index].buffer_type = MYSQL_TYPE_TINY;
+	_param_bind[index].buffer = &value;
 }
 
 void
-CRCPrepareStatement::SetParam(u_int32_t index, u_int32_t & value)
+CRCPrepareStatement::SetParam(uint32_t index, uint32_t & value)
 {
     if (index > _param_cnt){
         CRCLog::Error("CRCPrepareStatement::SetParam index too large: %d",index);
@@ -120,7 +120,7 @@ CRCPrepareStatement::SetParam(u_int32_t index, u_int32_t & value)
 }
 
 void
-CRCPrepareStatement::SetParam(u_int32_t index, std::string & value)
+CRCPrepareStatement::SetParam(uint32_t index, std::string & value)
 {
     if (index > _param_cnt){
         CRCLog::Error("CRCPrepareStatement::SetParam index too large: %d",index);
@@ -133,7 +133,7 @@ CRCPrepareStatement::SetParam(u_int32_t index, std::string & value)
 }
 
 void
-CRCPrepareStatement::SetParam(u_int32_t index, const std::string & value)
+CRCPrepareStatement::SetParam(uint32_t index, const std::string & value)
 {
     if (index > _param_cnt){
         CRCLog::Error("CRCPrepareStatement::SetParam index too large: %d",index);

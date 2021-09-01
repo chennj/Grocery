@@ -112,11 +112,11 @@ bool UserTable::insertUser()
 		{
 			uint32_t id = stmt->GetInsertId();
 			if(id %300 == 0)
-				printf("register then get User_id%d\n", id);
+				CRCLog::Info("register then get User_id%d", id);
 		}
 	}
 	delete stmt;
-	return true;
+	return bRet;
 }
 static string int2string(uint32_t user_id)
 {
@@ -132,7 +132,7 @@ bool UserTable::updateInfo(uint32_t id) {
 	strDomain = "naihan";
 
 	uint32_t nNow = (uint32_t)time(NULL);
-	string strSql = "update IMUser set `sex`=" + int2string(nSex) + ", `nick`='" + strNick
+	string strSql = "update IMUser set `sex`=" + int2string(2) + ", `nick`='" + strNick
 		+ "', `domain`='" + strDomain + "', `name`='" + strName + "', `phone`='" + strTel
 		+ "', `email`='" + strEmail + "', `avatar`='" + strAvatar + "', `sign_info`='" + sign_info
 		+ "', `departId`='" + int2string(nDeptId) + "', `status`=" + int2string(nStatus) + ", `updated`=" + int2string(nNow)
@@ -141,7 +141,7 @@ bool UserTable::updateInfo(uint32_t id) {
 	bRet = GetConn()->ExecuteUpdate(strSql.c_str());
 	if (!bRet)
 	{
-		printf("update user fail %s\n",strSql.c_str());
+		CRCLog::Info("update user fail %s\n",strSql.c_str());
 	}
 	return bRet;
 }
@@ -171,14 +171,14 @@ bool UserTable::queryUser(uint32_t id)
 			nValidateMethod = pResultSet->GetInt("validateMethod");
 			nStatus = pResultSet->GetInt("status");
 
-			printf("nId:%u\n", nId);
-			printf("nSex:%u\n", nSex);
-			printf("strNick:%s\n", strNick.c_str());
-			printf("strDomain:%s\n", strDomain.c_str());
-			printf("strName:%s\n", strName.c_str());
-			printf("strTel:%s\n", strTel.c_str());
-			printf("strEmail:%s\n", strEmail.c_str());
-			printf("sign_info:%s\n", sign_info.c_str());
+			CRCLog::Info("nId:%u", nId);
+			CRCLog::Info("nSex:%u", nSex);
+			CRCLog::Info("strNick:%s", strNick.c_str());
+			CRCLog::Info("strDomain:%s", strDomain.c_str());
+			CRCLog::Info("strName:%s", strName.c_str());
+			CRCLog::Info("strTel:%s", strTel.c_str());
+			CRCLog::Info("strEmail:%s", strEmail.c_str());
+			CRCLog::Info("sign_info:%s", sign_info.c_str());
 
 			bRet = true;
 
@@ -186,7 +186,7 @@ bool UserTable::queryUser(uint32_t id)
 		delete pResultSet;
 	}
 	else {
-		printf("no result for sql %s\n",strsql.c_str());
+		CRCLog::Info("no result for sql %s",strsql.c_str());
 	}
 	return bRet;
 }

@@ -19,7 +19,7 @@ protected:
 public: 
     virtual ~CRCConnPool()
     {
-        for(std::list<T*>::iterator it = _FreeList.begin(); it!=_FreeList.end(); it++){
+        for(typename std::list<T*>::iterator it = _FreeList.begin(); it!=_FreeList.end(); it++){
             T* pConn = *it;
             delete pConn;
         }
@@ -45,7 +45,7 @@ public:
             if (GetCurConnCnt() >= GetMaxConnCnt())
             {
                 //GetCurConnCnt()非空闲的连接数
-                if (_cond.wait_for(lock,std::chrono::seconds(1)==std::cv_status::timeout){
+                if (_cond.wait_for(lock,std::chrono::seconds(1))==std::cv_status::timeout){
                     CRCLog::CRCLog_Warring("get connection timeout");
                 }
             }
@@ -78,7 +78,7 @@ public:
     {
         std::unique_lock<std::mutex> lock(_mutex);
 
-        std::list<T*>::iterator it = _FreeList.begin();
+        typename std::list<T*>::iterator it = _FreeList.begin();
         for(;it != _FreeList.end(); it++){           
             if (*it == pConn){break;}
         }

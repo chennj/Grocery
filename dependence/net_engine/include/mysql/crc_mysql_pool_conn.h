@@ -45,7 +45,6 @@ public:
     int GetMinConnCnt() override;
     int GetMaxConnCnt() override;
     void IncreaseCurConnCnt() override;
-
 };
 
 #endif

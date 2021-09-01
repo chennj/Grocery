@@ -1,6 +1,8 @@
 #ifndef _CRC_MYSQL_CONN_H_
 #define _CRC_MYSQL_CONN_H_
 
+#include "../pool/crc_pool_conn.h"
+
 #include <mysql/mysql.h>
 #include <mysql/errmsg.h>
 #include <string>
@@ -19,7 +21,7 @@ private:
     char _escape_string[MAX_ESCAPE_STRING_LEN+1];
 
 public: 
-    CRCMysqlConn(CRCMysqlConnPool* pool);
+    CRCMysqlConn(CRCConnPool<CRCMysqlConn>* pool);
     ~CRCMysqlConn();
 
 public: 

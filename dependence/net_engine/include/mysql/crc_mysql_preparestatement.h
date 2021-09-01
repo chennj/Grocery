@@ -18,13 +18,13 @@ public:
 public: 
     bool Init(MYSQL* mysql, std::string & sql);
     bool Update();
-    u_int32_t GetInsertId();
+    uint32_t GetInsertId();
 
-    void SetParam(u_int32_t index, int & value);
-    void SetParam(u_int32_t index, u_int8_t  & value);
-    void SetParam(u_int32_t index, u_int32_t & value);
-    void SetParam(u_int32_t index, std::string & value);
-    void SetParam(u_int32_t index, const std::string & value);
+    void SetParam(uint32_t index, int & value);
+    void SetParam(uint32_t index, uint8_t  & value);
+    void SetParam(uint32_t index, uint32_t & value);
+    void SetParam(uint32_t index, std::string & value);
+    void SetParam(uint32_t index, const std::string & value);
 };
 
 
