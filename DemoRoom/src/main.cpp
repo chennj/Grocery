@@ -5,6 +5,27 @@
 
 #include <ifnpub.h>
 
+//display 16hex
+void print16(const char* data, int num)
+{
+	int i;
+	for (i = 0; i < num; i++) {
+		printf("%02x ", *data++);
+	}
+	printf("\n");
+}
+
+// crc16
+unsigned short crc16(const char* data, int num)
+{
+	int i;
+	unsigned short crc = 0;
+	for (i = 0; i < num; i++) {
+		crc += (unsigned short)(*data++);
+	}
+	return crc;
+}
+
 // wchar_t to string
 void Wchar_tToString(std::string& szDst, wchar_t *wchar)
 {
@@ -30,6 +51,36 @@ void StringToWstring(std::wstring& szDst, std::string str)
 	delete[] wszUtf8;
 }
 
+bool IsSame(unsigned int *array,int size)
+{
+	//在前面的数，与其后面的数比较，一旦发现相同，即返回true
+	for (int i = 0; i < size; i++)
+		for (int j = i + 1; j < size; j++)
+			if (array[i] == array[j]) return true;
+	return false;
+}
+
+bool IsContain(unsigned int se, unsigned int * array, int size)
+{
+	for (int i = 0; i < size; i++) {
+		if (array[i] == se) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void reverse_int(unsigned int v, unsigned int* ret)
+{
+	int i = 0;
+	while (v)
+	{
+		//printf("%d", v % 10);//输出个位。
+		ret[i++] = v % 10;
+		v /= 10; //将下一位数字移动到个位。
+	}
+}
+
 int main()
 {
 #if 0 //算法实验
@@ -47,6 +98,7 @@ int main()
 	std::cout << "min distance = " << result << std::endl;
 #endif
 
+#if 0 DLL实验
 	typedef BOOL(*DLL_FUNC_1)(const MCHAR* s, BOOL quietErrors, FPValue* fpv);
 
 	//wchar_t path[] = L"D:\\vs2015\\Grocery\\bin\\Debug-windows-x86_64\\CommonDll\\CommonDll.dll";
@@ -91,4 +143,143 @@ int main()
 
 	std::cout << "已退出。" << std::endl;
 	return 0;
+#endif
+
+#if 0 crc
+	char order[15];
+	memset(order, 0, sizeof(order));
+
+	order[0]	= 0x48;
+	order[1]	= 0x3a;
+	order[2]	= 0x01;
+	order[3]	= 0x54;
+	order[4]	= atoi("26");
+	order[5]	= 0x00;
+	order[6]	= 0x01;
+	order[7]	= 0x00;
+	order[8]	= 0x00;
+	order[9]	= 0x00;
+	order[10]	= 0x00;
+	order[11]	= 0x00;
+	order[12]	= 0x00;
+	order[13]	= 0x45;
+	order[14]	= 0x44;
+
+	unsigned short crc = crc16(order, 12);
+	order[12] = ((char*)&crc)[0];
+	print16(order,15);
+	return 0;
+#endif
+
+#if 0
+	char  asc[]= "zq 1 set 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 qz";
+	const int size = sizeof(asc);
+#endif
+
+#if 1
+	/*
+	编程考题（请在45分钟内完成，将运算的答案写在考卷上）
+	请通过编程运算，计算出一个七位数，这个七位数由七个不相同的个位数组成，这个七位数乘1、乘2、乘3...乘6，
+	得到的6个数字还是七位数，且这6个七位数依然是由最初七位数的七个数字组成，只是数字的排列组合不同而已。
+	请将这个七位数计算出来，写到考卷上。	
+	*/
+	int a, b, c, d, e, f, g;
+	unsigned int result = 0;
+	for (a = 1; a <= 9; a++)
+	for (b = 0; b <= 9; b++)
+	for (c = 0; c <= 9; c++)
+	for (d = 0; d <= 9; d++)
+	for (e = 0; e <= 9; e++)
+	for (f = 0; f <= 9; f++)
+	for (g = 0; g <= 9; g++)
+	{
+		unsigned int nums[7] = { a,b,c,d,e,f,g };
+		if (IsSame(nums, 7)) {
+			continue;
+		}
+		result = a * 1000000 + b * 100000 + c * 10000 + d * 1000 + e * 100 + f * 10 + g;
+
+		bool isPass = true;
+		unsigned int ses[7] = { 0 };
+		unsigned int tmp = result * 2;
+		if (tmp > 9999999) {
+			continue;
+		}
+		reverse_int(tmp, ses);
+		for (int i = 0; i < 7; i++) {
+			if (!IsContain(ses[i], nums, 7)) {
+				isPass = false;
+				break;
+			}
+		}
+
+		if (!isPass) { continue; }
+
+		tmp = result * 3;
+		if (tmp > 9999999) {
+			continue;
+		}
+		reverse_int(tmp, ses);
+		for (int i = 0; i < 7; i++) {
+			if (!IsContain(ses[i], nums, 7)) {
+				isPass = false;
+				break;
+			}
+		}
+
+		if (!isPass) { continue; }
+
+		tmp = result * 4;
+		if (tmp > 9999999) {
+			continue;
+		}
+		reverse_int(tmp, ses);
+		for (int i = 0; i < 7; i++) {
+			if (!IsContain(ses[i], nums, 7)) {
+				isPass = false;
+				break;
+			}
+		}
+
+		if (!isPass) { continue; }
+
+		tmp = result * 5;
+		if (tmp > 9999999) {
+			continue;
+		}
+		reverse_int(tmp, ses);
+		for (int i = 0; i < 7; i++) {
+			if (!IsContain(ses[i], nums, 7)) {
+				isPass = false;
+				break;
+			}
+		}
+
+		if (!isPass) { continue; }
+
+		tmp = result * 6;
+		if (tmp > 9999999) {
+			continue;
+		}
+		reverse_int(tmp, ses);
+		for (int i = 0; i < 7; i++) {
+			if (!IsContain(ses[i], nums, 7)) {
+				isPass = false;
+				break;
+			}
+		}
+
+		if (!isPass) { continue; }
+
+		std::cout << "查找结果：" << result << std::endl;
+		std::cout << "验证---------------" << std::endl;
+		std::cout << "* 1 = " << result * 1 << std::endl;
+		std::cout << "* 2 = " << result * 2 << std::endl;
+		std::cout << "* 3 = " << result * 3 << std::endl;
+		std::cout << "* 4 = " << result * 4 << std::endl;
+		std::cout << "* 5 = " << result * 5 << std::endl;
+		std::cout << "* 6 = " << result * 6 << std::endl;
+	}
+
+#endif
 }

@@ -6,8 +6,6 @@
 #define EXPORT_DLL
 #endif
 
-#include <ifnpub.h>
-
 extern "C"
 {
 	// ------------------------ test ------------------------------------------
@@ -17,7 +15,7 @@ extern "C"
 		return a + b;
 	}
 
-	EXPORT_DLL BOOL ExecuteMAXScriptScript(const MCHAR* s, BOOL quietErrors, FPValue* fpv)
+	EXPORT_DLL BOOL ExecuteMAXScriptScript(const char* s, BOOL quietErrors, void* fpv)
 	{
 		return true;
 	}
