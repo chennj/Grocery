@@ -176,7 +176,7 @@ int main()
 	const int size = sizeof(asc);
 #endif
 
-#if 1
+#if 0
 	/*
 	编程考题（请在45分钟内完成，将运算的答案写在考卷上）
 	请通过编程运算，计算出一个七位数，这个七位数由七个不相同的个位数组成，这个七位数乘1、乘2、乘3...乘6，
@@ -282,4 +282,15 @@ int main()
 	}
 
 #endif
+
+	struct _data {
+		int a, b, c;
+		char ary[0];
+	};
+	_data data;
+	char str[] = "this is a test!";
+	std::cout << "str len:" << sizeof(str) << std::endl;
+	memcpy(data.ary, str, sizeof(str));
+	std::cout << data.ary << ", size:" << sizeof(data) << std::endl;
+	return 0;
 }
