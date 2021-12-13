@@ -10,8 +10,8 @@ CRCEasyTcpClient::~CRCEasyTcpClient()
     Close();
 }
 
-SOCKET
-CRCEasyTcpClient::InitSocket(int sendSize, int recvSize)
+SOCKET 
+CRCEasyTcpClient::InitSocket(int af,int sendSize, int recvSize)
 {
     CRCNetWork::Init();
 
@@ -20,45 +20,52 @@ CRCEasyTcpClient::InitSocket(int sendSize, int recvSize)
         CRCLog_Info("warning, initSocket close old socket<%d>...", (int)_pClient->sockfd());
         Close();
     }
-    SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    _address_family = af;
+    SOCKET sock = socket(af, SOCK_STREAM, IPPROTO_TCP);
     if (INVALID_SOCKET == sock)
     {
         CRCLog_PError("create socket failed...");
     }
-    else 
-    {
+    else {
         CRCNetWork::make_reuseaddr(sock);
-        CRCLog_Info("create socket<%d> success...", (int)sock);
-        _pClient = new CRCClient(sock, sendSize, recvSize);
+        //CRCLog_Info("create socket<%d> success...", (int)sock);
+        _pClient = makeClientObj(sock, sendSize, recvSize);
         OnInitSocket();
     }
     return sock;
 }
 
-int
+int 
 CRCEasyTcpClient::Connect(const char* ip, unsigned short port)
 {
-    _ip = ip;
-    _port = port;
-
     if (!_pClient)
     {
-        if (INVALID_SOCKET == InitSocket())
-        {
-            return SOCKET_ERROR;
-        }
+        return SOCKET_ERROR;
     }
-    // 2 连接服务器 connect
-    sockaddr_in _sin = {};
-    _sin.sin_family = AF_INET;
-    _sin.sin_port = htons(port);
+    int ret = SOCKET_ERROR;
+    if (AF_INET == _address_family)//ipv4
+    {
+        // 2 连接服务器 connect
+        sockaddr_in _sin = {};
+        _sin.sin_family = AF_INET;
+        _sin.sin_port = htons(port);
 #ifdef _WIN32
-    _sin.sin_addr.S_un.S_addr = inet_addr(ip);
+        _sin.sin_addr.S_un.S_addr = inet_addr(ip);
 #else
-    _sin.sin_addr.s_addr = inet_addr(ip);
+        _sin.sin_addr.s_addr = inet_addr(ip);
 #endif
-    CRCLog_Info("<socket=%d> connecting <%s:%d>...", (int)_pClient->sockfd(), ip, port);
-    int ret = connect(_pClient->sockfd(), (sockaddr*)&_sin, sizeof(sockaddr_in));
+        //CRCLog_Info("<socket=%d> connecting <%s:%d>...", (int)_pClient->sockfd(), ip, port);
+        ret = connect(_pClient->sockfd(), (sockaddr*)&_sin, sizeof(sockaddr_in));
+    }
+    else {//ipv6
+        sockaddr_in6 _sin = {};
+        _sin.sin6_scope_id = if_nametoindex(_scope_id_name.c_str());
+        _sin.sin6_family = AF_INET6;
+        _sin.sin6_port = htons(port);
+        inet_pton(AF_INET6, ip, &_sin.sin6_addr);
+        ret = connect(_pClient->sockfd(), (sockaddr*)&_sin, sizeof(sockaddr_in6));
+    }
+
     if (SOCKET_ERROR == ret)
     {
         CRCLog_PError("<socket=%d> connect <%s:%d> failed...", (int)_pClient->sockfd(), ip, port);
@@ -66,29 +73,31 @@ CRCEasyTcpClient::Connect(const char* ip, unsigned short port)
     else {
         _isConnect = true;
         OnConnect();
-        CRCLog_Info("<socket=%d> connect <%s:%d> success...", (int)_pClient->sockfd(), ip, port);
+        //CRCLog_Info("<socket=%d> connect <%s:%d> success...", (int)_pClient->sockfd(), ip, port);
     }
     return ret;
 }
 
-void
+void 
 CRCEasyTcpClient::Close()
 {
     if (_pClient)
     {
         delete _pClient;
         _pClient = nullptr;
+
+        _isConnect = false;
+        OnDisconnect();
     }
-    _isConnect = false;
 }
 
-bool
+bool 
 CRCEasyTcpClient::isRun()
 {
     return _pClient && _isConnect;
 }
 
-int
+int 
 CRCEasyTcpClient::RecvData()
 {
     if (isRun())
@@ -104,7 +113,7 @@ CRCEasyTcpClient::RecvData()
     return 0;
 }
 
-void
+void 
 CRCEasyTcpClient::DoMsg()
 {
     //循环 判断是否有消息需要处理
@@ -112,20 +121,27 @@ CRCEasyTcpClient::DoMsg()
     {
         //处理网络消息
         OnNetMsg(_pClient->front_msg());
+
+        if (_pClient->isClose())
+        {
+            Close();
+            return;
+        }
+
         //移除消息队列（缓冲区）最前的一条数据
         _pClient->pop_front_msg();
     }
 }
 
-int
+int 
 CRCEasyTcpClient::SendData(CRCDataHeader* header)
 {
-    if(isRun())
+    if (isRun())
         return _pClient->SendData(header);
     return SOCKET_ERROR;
 }
 
-int
+int 
 CRCEasyTcpClient::SendData(const char* pData, int len)
 {
     if (isRun())
@@ -133,10 +149,29 @@ CRCEasyTcpClient::SendData(const char* pData, int len)
     return SOCKET_ERROR;
 }
 
-void
-CRCEasyTcpClient::OnInitSocket()
-{}
+void 
+CRCEasyTcpClient::setScopeIdName(std::string scope_id_name)
+{
+    _scope_id_name = scope_id_name;
+}
 
-void
-CRCEasyTcpClient::OnConnect()
-{}
+CRCClient* 
+CRCEasyTcpClient::makeClientObj(SOCKET cSock, int sendSize, int recvSize)
+{
+    return new CRCClient(cSock, sendSize, recvSize);
+}
+
+void 
+CRCEasyTcpClient::OnInitSocket() 
+{
+};
+
+void 
+CRCEasyTcpClient::OnConnect() 
+{
+};
+
+void 
+CRCEasyTcpClient::OnDisconnect() 
+{
+};

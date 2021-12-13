@@ -96,7 +96,7 @@ CRCClientSHttp::getRequestInfo()
     char* pp = _recvBuff.data();
     pp[_headerLen-1] = '\0';
 
-    CRCSplitString ss;
+    CRCIO::CRCSplitString ss;
     ss.set(_recvBuff.data());
     //请求行示例："GET /login.php?a=5 HTTP/1.1\r\n"
     char* temp = ss.get("\r\n");
@@ -114,7 +114,7 @@ CRCClientSHttp::getRequestInfo()
         if (temp)
         {
             //"Connection: Keep-Alive\0\n"
-            CRCSplitString ss2;
+            CRCIO::CRCSplitString ss2;
             ss2.set(temp);
             //每个请求头字段都是"key: val\r\n"
             char* key = ss2.get(": ");
@@ -149,14 +149,14 @@ CRCClientSHttp::getRequestInfo()
 void 
 CRCClientSHttp::SplitUrlArgs(char* args)
 {
-    CRCSplitString ss;
+    CRCIO::CRCSplitString ss;
     ss.set(args);
     while (true)
     {
         char* temp = ss.get('&');
         if (temp)
         {
-            CRCSplitString ss2;
+            CRCIO::CRCSplitString ss2;
             ss2.set(temp);
             char* key = ss2.get('=');
             char* val = ss2.get('=');
@@ -173,7 +173,7 @@ bool
 CRCClientSHttp::request_args(char* requestLine)
 {
     //requestLine="GET /login.php?a=5 HTTP/1.1"
-    CRCSplitString ss;
+    CRCIO::CRCSplitString ss;
     ss.set(requestLine);
     //requestLine="GET\0/login.php?a=5 HTTP/1.1"
     _method = ss.get(' ');

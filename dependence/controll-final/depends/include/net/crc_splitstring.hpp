@@ -3,63 +3,66 @@
 
 #include <string>
 
-class CRCSplitString
+namespace CRCIO
 {
-private:
-    char* _str = nullptr;
-    bool _first = true;
-public:
-    void set(char* str)
+    class CRCSplitString
     {
-        _str = str;
-        _first = true;
-    }
-
-    char* get(char end)
-    {
-        if (!_str)
-            return nullptr;
-        //str="GET /login.php?a=5 HTTP/1.1"
-        char* temp = strchr(_str, end);
-        if (!temp)
+    private:
+        char* _str = nullptr;
+        bool _first = true;
+    public:
+        void set(char* str)
         {
-            if (_first)
-            {
-                _first = false;
-                return _str;
-            }
-            return nullptr;
+            _str = str;
+            _first = true;
         }
-        //str="GET\0/login.php?a=5 HTTP/1.1"
-        temp[0] = '\0';
-        //ret="GET\0
-        char* ret = _str;
-        //str="/login.php?a=5 HTTP/1.1"
-        _str = temp + 1;
 
-        return ret;
-    }
-
-    char* get(const char* end)
-    {
-        if (!_str || !end)
-            return nullptr;
-
-        char* temp = strstr(_str, end);
-        if (!temp)
+        char* get(char end)
         {
-            if (_first)
+            if (!_str)
+                return nullptr;
+            //str="GET /login.php?a=5 HTTP/1.1"
+            char* temp = strchr(_str, end);
+            if (!temp)
             {
-                _first = false;
-                return _str;
+                if (_first)
+                {
+                    _first = false;
+                    return _str;
+                }
+                return nullptr;
             }
-            return nullptr;
-        }
-        temp[0] = '\0';
-        char* ret = _str;
-        _str = temp + strlen(end);
+            //str="GET\0/login.php?a=5 HTTP/1.1"
+            temp[0] = '\0';
+            //ret="GET\0
+            char* ret = _str;
+            //str="/login.php?a=5 HTTP/1.1"
+            _str = temp + 1;
 
-        return ret;
-    }
-};
+            return ret;
+        }
+
+        char* get(const char* end)
+        {
+            if (!_str || !end)
+                return nullptr;
+
+            char* temp = strstr(_str, end);
+            if (!temp)
+            {
+                if (_first)
+                {
+                    _first = false;
+                    return _str;
+                }
+                return nullptr;
+            }
+            temp[0] = '\0';
+            char* ret = _str;
+            _str = temp + strlen(end);
+
+            return ret;
+        }
+    };
+}
 #endif //!_CRC_SPLITSTRING_HPP_

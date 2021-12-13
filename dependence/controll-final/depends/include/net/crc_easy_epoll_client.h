@@ -13,7 +13,7 @@ public:
     virtual void Close() override;
 
     //处理网络消息
-    bool OnRun(int microseconds = 1);
+    bool OnRun(int microseconds = 1) override;
     
 protected:
     CRCEpoll _ep;

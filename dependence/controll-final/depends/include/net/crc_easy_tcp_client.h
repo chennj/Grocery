@@ -11,11 +11,11 @@ class CRCEasyTcpClient
 {
 public:
 	CRCEasyTcpClient();
-	
+
 	virtual ~CRCEasyTcpClient();
 
 	//初始化socket
-	SOCKET InitSocket(int sendSize = SEND_BUFF_SZIE, int recvSize = RECV_BUFF_SZIE);
+	SOCKET InitSocket(int af,int sendSize = SEND_BUFF_SZIE, int recvSize = RECV_BUFF_SZIE);
 
 	//连接服务器
 	int Connect(const char* ip, unsigned short port);
@@ -42,15 +42,22 @@ public:
 
 	int SendData(const char* pData, int len);
 
+	void setScopeIdName(std::string scope_id_name);
+
 protected:
+	virtual CRCClient* makeClientObj(SOCKET cSock, int sendSize, int recvSize);
+
 	virtual void OnInitSocket();
 
 	virtual void OnConnect();
+
+	virtual void OnDisconnect();
+	
 protected:
-	CRCClient* _pClient = nullptr;
+	CRCClient * _pClient = nullptr;
+	int _address_family = AF_INET;
+	std::string _scope_id_name;
 	bool _isConnect = false;
-	const char* _ip;
-	unsigned short _port;
 };
 
 #endif
