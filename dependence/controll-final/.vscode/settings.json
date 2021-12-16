@@ -49,7 +49,9 @@
         "map": "cpp",
         "memory_resource": "cpp",
         "random": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "cstring": "cpp",
+        "iostream": "cpp"
     },
     "editor.minimap.enabled": false,
     "clang.cxxflags": [

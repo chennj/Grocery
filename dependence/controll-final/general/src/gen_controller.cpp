@@ -76,8 +76,8 @@ GenController::on_other_msg(CRCWorkServer* server, CRCNetClientS* client, std::s
     }
 }
 
- void 
- GenController::on_client_leave(CRCNetClientS* client)
+void 
+GenController::on_client_leave(CRCNetClientS* client)
 {
     if(client->is_ss_link())
         _transfer.del(client);

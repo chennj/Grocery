@@ -1,5 +1,5 @@
 #include "crc_easy_websocket_client.h"
-#include "crc_base64.hpp"
+#include "crc_base64.h"
 
 CRCEasyWebSocketClient::CRCEasyWebSocketClient()
 {

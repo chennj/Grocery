@@ -109,9 +109,9 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
 void 
 CRCNetServer::Init()
 {
-    const char* strIP = CRCConfig::Instance().getStr("strIP", "any");
-    uint16_t nPort = CRCConfig::Instance().getInt("nPort", 4567);
-    int nThread = 1;//CRCConfig::Instance().getInt("nThread", 1);
+    const char* strIP   = CRCConfig::Instance().getStr("strIP", "any");
+    uint16_t nPort      = CRCConfig::Instance().getInt("nPort", 4567);
+    int nThread         = CRCConfig::Instance().getInt("nThread", 1);
 
     if (strcmp(strIP, "any") == 0)
     {
@@ -137,7 +137,7 @@ void
 CRCNetServer::reg_msg_call(std::string cmd, NetEventCall call)
 {
     _map_msg_call[cmd] = call;
-    CRCLog_Info("INetServer::reg_msg_call cmd<%s>.", cmd.c_str());
+    CRCLog_Info("CRCNetServer::reg_msg_call cmd<%s>.", cmd.c_str());
 }
 
 bool 
@@ -149,6 +149,6 @@ CRCNetServer::on_net_msg_do(CRCWorkServer* pServer, CRCNetClientS* pWSClient, st
         itr->second(pServer, pWSClient, msgJson);
         return true;
     }
-    CRCLog_Info("%s::INetServer::on_net_msg_do not found cmd<%s>.", pWSClient->link_name().c_str(), cmd.c_str());
+    CRCLog_Info("%s::CRCNetServer::on_net_msg_do not found cmd<%s>.", pWSClient->link_name().c_str(), cmd.c_str());
     return false;
 }

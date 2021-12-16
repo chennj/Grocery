@@ -1,5 +1,5 @@
 #include "crc_client_s_websocket.h"
-#include "crc_base64.hpp"
+#include "crc_base64.h"
 
 CRCClientSWebSocket::CRCClientSWebSocket(SOCKET sockfd, int sendSize, int recvSize)
     :CRCClientSHttp(sockfd, sendSize, recvSize)

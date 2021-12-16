@@ -1,0 +1,34 @@
+Info [2021-12-16 15:40:13]CRCLog::setLogPath success,<GenControllerLog.txt,w>
+Info [2021-12-16 15:40:13]CRCConfig::getInt nSendBuffSize=10240
+Info [2021-12-16 15:40:13]CRCConfig::getInt nRecvBuffSize=10240
+Info [2021-12-16 15:40:13]CRCConfig::getInt nMaxClient=10000
+Info [2021-12-16 15:40:13]CRCConfig::getStr strIP=any
+Info [2021-12-16 15:40:13]CRCConfig::getInt nPort=7654
+Info [2021-12-16 15:40:13]CRCConfig::getInt nThread=2
+Info [2021-12-16 15:40:13]-ipv4
+Info [2021-12-16 15:40:13]create socket<4> success...
+Info [2021-12-16 15:40:13]bind port<7654> success...
+Info [2021-12-16 15:40:13]listen port<4> success...
+Info [2021-12-16 15:40:13]CRCNetServer::reg_msg_call cmd<cs_msg_heart>.
+Info [2021-12-16 15:40:13]CRCNetServer::reg_msg_call cmd<ss_reg_api>.
+Info [2021-12-16 15:40:23]thread<2>,time<10.000153>,socket<4>,Accept<0>,Join<0>,recv<0>,msg<0>
+Info [2021-12-16 15:40:33]thread<2>,time<10.000338>,socket<4>,Accept<0>,Join<0>,recv<0>,msg<0>
+Info [2021-12-16 15:40:38]EasyTcpServer.Close begin
+Info [2021-12-16 15:40:38]CRCWorkServer1.Close begin
+Info [2021-12-16 15:40:38]CRCWorkServer1.OnRun exit
+Info [2021-12-16 15:40:38]CRCWorkServer1.Close end
+Info [2021-12-16 15:40:38]CRCWorkServer1.~CRCWorkServer exit begin
+Info [2021-12-16 15:40:38]CRCWorkServer1.Close begin
+Info [2021-12-16 15:40:38]CRCWorkServer1.Close end
+Info [2021-12-16 15:40:38]CRCWorkServer1.~CRCWorkServer exit end
+Info [2021-12-16 15:40:38]CRCWorkServer2.Close begin
+Info [2021-12-16 15:40:38]CRCWorkServer2.OnRun exit
+Info [2021-12-16 15:40:38]CRCWorkServer2.Close end
+Info [2021-12-16 15:40:38]CRCWorkServer2.~CRCWorkServer exit begin
+Info [2021-12-16 15:40:38]CRCWorkServer2.Close begin
+Info [2021-12-16 15:40:38]CRCWorkServer2.Close end
+Info [2021-12-16 15:40:38]CRCWorkServer2.~CRCWorkServer exit end
+Info [2021-12-16 15:40:38]EasyTcpServer.Close end
+Info [2021-12-16 15:40:38]exit.
+Info [2021-12-16 15:40:38]EasyTcpServer.Close begin
+Info [2021-12-16 15:40:38]EasyTcpServer.Close end
