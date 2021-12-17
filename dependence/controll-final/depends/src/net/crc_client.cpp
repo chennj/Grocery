@@ -2,15 +2,17 @@
 
 CRCClient::CRCClient(SOCKET sockfd, int sendSize, int recvSize)
 :
-_sockfd(sockfd),
 _sendBuff(sendSize),
 _recvBuff(recvSize)
 {
     static int n = 1;
     id = n++;
+    _sockfd = sockfd;
 
     resetDTHeart();
     resetDTSend();
+
+    //CRCLog_Info("Channel Init: sockfd<%d> sendBuff Size<%d> recvBuff Size<%d>", _sockfd, _sendBuff, _recvBuff);
 }
 
 CRCClient::~CRCClient()

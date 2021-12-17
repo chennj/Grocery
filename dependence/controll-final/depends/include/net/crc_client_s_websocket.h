@@ -28,10 +28,7 @@ public:
 
     int pong();
 
-    inline CRCIO::WebSocketHeader& WebsocketHeader()
-    {
-        return _wsh;
-    }
+    CRCIO::WebSocketHeader& WebsocketHeader();
 private:
     CRCIO::WebSocketHeader _wsh = {};
 };

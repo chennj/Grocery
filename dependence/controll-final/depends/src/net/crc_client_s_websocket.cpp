@@ -264,3 +264,9 @@ CRCClientSWebSocket::pong()
 {
     return writeHeader(CRCIO::opcode_PONG, 0);
 }
+
+CRCIO::WebSocketHeader& 
+CRCClientSWebSocket::WebsocketHeader()
+{
+    return _wsh;
+}

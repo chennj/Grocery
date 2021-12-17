@@ -50,6 +50,7 @@ CRCWorkServer::OnRun(CRCThread* pThread)
                 if (_pNetEvent)
                     _pNetEvent->OnNetJoin(pClient);
                 OnClientJoin(pClient);
+                pClient->state(clientState_join);
             }
             _clientsBuff.clear();
             _clients_change = true;
@@ -90,18 +91,23 @@ CRCWorkServer::CheckTime()
         //心跳检测
         if (pClient->checkHeart(dt))
         {
-#ifdef CRC_USE_IOCP
-            if(pClient->isPostIoAction())
-                pClient->destory();
+#ifdef CELL_USE_IOCP
+            if (pClient->isPostIoAction())
+            {
+                pClient->destorySocket();
+            }
             else
+            {
                 OnClientLeave(pClient);
+                iter = _clients.erase(iter);
+                continue;
+            }
 #else
             OnClientLeave(pClient);
-#endif // CRC_USE_IOCP
             iter = _clients.erase(iter);
             continue;
+#endif // CELL_USE_IOCP
         }
-
         ////定时发送检测
         //pClient->checkSend(dt);
 

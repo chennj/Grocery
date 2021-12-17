@@ -25,7 +25,7 @@ CRCClientSHttp::checkHttpRequest()
     //未找到表示消息还不完整
     if (!temp)
         return 0;
-    //CRCLog_Info(_recvBuff.data());
+    CRCLog_Info(_recvBuff.data());
     //偏移到消息结束位置
     //4=strlen("\r\n\r\n")
     temp += 4;

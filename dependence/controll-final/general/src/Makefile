@@ -15,7 +15,8 @@ SERVERSRC 	= gen_controller_main.cpp gen_controller.cpp \
 
 all: $(SERVER)
 controller:
-	$(CXX) -g -o controller -std=c++11 $(SERVERSRC) $(INCLUDE) $(LIBS) $(FLAGS) 
+	$(CXX) -g -c -std=c++11 $(SERVERSRC) $(INCLUDE) $(LIBS) $(FLAGS);
+	$(CXX) -g -o controller *.o $(LIBS);
 
 .PHONY: clean
 clean:
