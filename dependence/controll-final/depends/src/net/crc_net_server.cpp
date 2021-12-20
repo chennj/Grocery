@@ -86,24 +86,67 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         return;
     }
     
-    std::string cmd;
-    if (!json.Get("cmd", cmd))
+    //服务端响应
+    bool is_resp = false;
+    if (json.Get("is_resp", is_resp) && is_resp)
     {
-        CRCLog_Error("not found key<%s>.", "cmd");
+        if (!pWSClient->is_ss_link())
+        {
+            CRCLog_Error("pWSClient->is_ss_link=false, is_resp=true.");
+            return;
+        }
+
+        int clientId = 0;
+        if (!json.Get("clientId", clientId))
+        {
+            CRCLog_Error("not found key<%s>.", "clientId");
+            return;
+        }
+
+        auto client = dynamic_cast<CRCNetClientS*>( pServer->find_client(clientId));
+        if (!client)
+        {
+            CRCLog_Error("CRCNetServer::OnNetMsgWS::pServer->find_client(%d) miss.", clientId);
+            return;
+        }
+        if (SOCKET_ERROR == client->writeText(dataStr, wsh.len))
+        {
+            CRCLog_Error("CRCNetServer::OnNetMsgWS::sslink(%s)->clientId(%d) writeText SOCKET_ERROR.", pWSClient->link_name().c_str(), clientId);
+        }
+
         return;
     }
 
-    neb::CJsonObject data;
-    if (!json.Get("data", data))
+    bool is_req = false;
+    if (!json.Get("is_req", is_req))
     {
-        CRCLog_Error("not found key<%s>.", "data");
+        CRCLog_Error("not found key<%s>.", "is_req");
         return;
     }
 
-    if (on_net_msg_do(pServer, pWSClient, cmd, json))
-        return;
+    //用户端请求
+    //服务端请求
+    if (is_req)
+    {
+        std::string cmd;
+        if (!json.Get("cmd", cmd))
+        {
+            CRCLog_Error("not found key<%s>.", "cmd");
+            return;
+        }
 
-    on_other_msg(pServer, pWSClient, cmd, json);
+        int clientId = (int)pWSClient->sockfd();
+        json.Add("clientId", clientId);
+
+        if (on_net_msg_do(pServer, pWSClient, cmd, json))
+            return;
+
+        on_other_msg(pServer, pWSClient, cmd, json);
+
+        return;
+    }
+
+    CRCLog_Error("CRCNetServer::OnNetMsgWS:: is_req=false,  is_resp=false.");   
 }
 
 void 

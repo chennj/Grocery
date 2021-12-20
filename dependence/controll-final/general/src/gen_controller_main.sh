@@ -5,7 +5,7 @@ cmd="strIP=any"
 #服务端端口
 cmd="${cmd} nPort=4567"
 #工作线程数量
-cmd="${cmd} nThread=4"
+cmd="${cmd} nThread=1"
 #限制客户端数量
 cmd="${cmd} nMaxClient=10000"
 #cmd="${cmd} sendback=1"

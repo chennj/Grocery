@@ -206,6 +206,16 @@ CRCWorkServer::getClientCount()
     return _clients.size() + _clientsBuff.size();
 }
 
+CRCClient* 
+CRCWorkServer::find_client(int id)
+{
+    auto iter = _clients.find((SOCKET)id);
+    if (iter != _clients.end()){
+        return iter->second;
+    }
+    return nullptr;
+}
+
 void 
 CRCWorkServer::ClearClients()
 {

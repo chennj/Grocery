@@ -7,7 +7,6 @@ LoginServer::Init()
 
     _csCtrl.reg_msg_call("onopen", std::bind(&LoginServer::onopen_csCtrl, this, std::placeholders::_1, std::placeholders::_2));
 
-    _csCtrl.reg_msg_call("cs_msg_heart", std::bind(&LoginServer::cs_msg_heart, this,std::placeholders::_1, std::placeholders::_2));
     _csCtrl.reg_msg_call("cs_msg_login", std::bind(&LoginServer::cs_msg_login, this, std::placeholders::_1, std::placeholders::_2));
 }
 
@@ -35,23 +34,17 @@ LoginServer::onopen_csCtrl(CRCNetClientC* client, CRCJson& msg)
     json["apis"].Add("cs_msg_register");
     json["apis"].Add("cs_msg_change_pw");
 
-    client->request("ss_reg_api", json);
-}
-
-void 
-LoginServer::cs_msg_heart(CRCNetClientC* client, CRCJson& msg)
-{
-    CRCLog_Info("LoginServer::cs_msg_heart");
-
-    CRCJson ret;
-    ret.Add("data", "wo ye bu ji dao.");
-    client->response(msg, ret);
-
-    //client->respone(msg, "wo ye bu ji dao.");
+    client->request("ss_reg_api", json, [](CRCNetClientC* client, CRCJson& msg) {
+        CRCLog_Info("LoginServer::ss_reg_api return: %s", msg("data").c_str());
+    });
 }
 
 void 
 LoginServer::cs_msg_login(CRCNetClientC* client, CRCJson& msg)
 {
     CRCLog_Info("LoginServer::cs_msg_login");
+
+    CRCJson ret;
+    ret.Add("data", "login successs.");
+    client->response(msg, ret);
 }

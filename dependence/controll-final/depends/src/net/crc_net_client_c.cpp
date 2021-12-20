@@ -12,12 +12,6 @@ CRCNetClientC::connect(const char* link_name,const char* url)
     _client.send_buff_size(s_size);
     _client.recv_buff_size(r_size);
 
-    if (!_client.connect(url))
-    {
-        CRCLog_Warring("%s::CRCNetClientC::connect(%s) failed.", _link_name.c_str(), _url.c_str());
-        return false;
-    }
-
     //do
     _client.onopen = [this](CRCClientCWebSocket* pWSClient)
     {
@@ -38,7 +32,7 @@ CRCNetClientC::connect(const char* link_name,const char* url)
         }
 
         auto dataStr = pWSClient->fetch_data();
-        //CRCLog_Info("websocket server say: %s", dataStr);
+        CRCLog_Info("websocket server say: %s", dataStr);
 
         CRCJson json;
         if (!json.Parse(dataStr))
@@ -61,21 +55,28 @@ CRCNetClientC::connect(const char* link_name,const char* url)
             return;
         }
 
-        std::string cmd;
-        if (!json.Get("cmd", cmd))
+        //响应(对同一个msgId)
+        bool is_resp = false;
+        if (json.Get("is_resp", is_resp) && is_resp)
         {
-            CRCLog_Error("not found key<%s>.", "cmd");
+            on_net_msg_do(msgId, json);
             return;
         }
 
-        std::string data;
-        if (!json.Get("data", data))
+        //请求
+        bool is_req = false;
+        if (json.Get("is_req", is_req) && is_req)
         {
-            CRCLog_Error("not found key<%s>.", "data");
+            std::string cmd;
+            if (!json.Get("cmd", cmd))
+            {
+                CRCLog_Error("not found key<%s>.", "cmd");
+                return;
+            }
+
+            on_net_msg_do(cmd, json);
             return;
         }
-
-        on_net_msg_do(cmd, json);
     };
 
     _client.onclose = [this](CRCClientCWebSocket* pWSClient)
@@ -99,7 +100,29 @@ CRCNetClientC::connect(const char* link_name,const char* url)
 bool 
 CRCNetClientC::run(int microseconds)
 {
-    return _client.OnRun(microseconds);
+    if (_client.isRun())
+    {
+        if (_time2heart.getElapsedSecond() > 5.0)
+        {
+            _time2heart.update();
+            CRCJson json;
+            //request("cs_msg_heart", json,[](CRCNetClientC* client, CRCJson& msg) {
+            //    CRCLog_Info("CRCNetClientC::cs_msg_heart return: %s", msg("data").c_str());
+            //});
+            request("cs_msg_heart", json);
+        }
+        return _client.OnRun(microseconds);
+    }
+
+    if (_client.connect(_url.c_str()))
+    {
+        _time2heart.update();
+        CRCLog_Warring("%s::CRCNetClientC::connect(%s) success.", _link_name.c_str(), _url.c_str());
+        return true;
+    }
+
+    CRCThread::Sleep(1000);
+    return false;
 }
 
 void 
@@ -127,12 +150,46 @@ CRCNetClientC::on_net_msg_do(const std::string& cmd, CRCJson& msgJson)
     return false;
 }
 
+bool 
+CRCNetClientC::on_net_msg_do(int msgId, CRCJson& msgJson)
+{
+    auto itr = _map_request_call.find(msgId);
+    if (itr != _map_request_call.end())
+    {
+        itr->second(this, msgJson);
+        return true;
+    }
+    CRCLog_Info("%s::CRCNetClientC::on_net_msg_do not found msgId<%d>.", _link_name.c_str(), msgId);
+    return false;    
+}
+
 void 
 CRCNetClientC::request(const std::string& cmd, CRCJson& data)
 {
+    _time2heart.update();
+
     CRCJson msg;
     msg.Add("cmd", cmd);
-    msg.Add("msgId", ++msgId);
+    msg.Add("is_req", true, true);
+    msg.Add("msgId", ++_msgId);
+    msg.Add("time", CRCTime::system_clock_now());
+    msg.Add("data", data);
+
+    std::string retStr = msg.ToString();
+    _client.writeText(retStr.c_str(), retStr.length());
+}
+
+void 
+CRCNetClientC::request(const std::string& cmd, CRCJson& data, NetEventCall call)
+{
+    _time2heart.update();
+    
+    CRCJson msg;
+    msg.Add("cmd", cmd);
+    msg.Add("is_req", true, true);
+    msg.Add("msgId", ++_msgId);
+    _map_request_call[_msgId] = call;
+
     msg.Add("time", CRCTime::system_clock_now());
     msg.Add("data", data);
 
@@ -145,6 +202,7 @@ CRCNetClientC::response(int msgId, std::string data)
 {
     CRCJson ret;
     ret.Add("msgId", msgId);
+    ret.Add("is_resp", true, true);
     ret.Add("time", CRCTime::system_clock_now());
     ret.Add("data", data);
 
@@ -164,6 +222,7 @@ CRCNetClientC::response(CRCJson& msg, std::string data)
 
     CRCJson ret;
     ret.Add("msgId", msgId);
+    ret.Add("is_resp", true, true);
     ret.Add("time", CRCTime::system_clock_now());
     ret.Add("data", data);
 
@@ -181,7 +240,16 @@ CRCNetClientC::response(CRCJson& msg, CRCJson& ret)
         return;
     }
 
+    int clientId = 0;
+    if (!msg.Get("clientId", clientId))
+    {
+        CRCLog_Error("not found key<%s>.", "clientId");
+        return;
+    }
+
     ret.Add("msgId", msgId);
+    ret.Add("clientId", clientId);
+    ret.Add("is_resp", true, true);
     ret.Add("time", CRCTime::system_clock_now());
 
     std::string retStr = ret.ToString();

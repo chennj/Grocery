@@ -19,13 +19,11 @@ GenController::Close()
 void 
 GenController::cs_msg_heart(CRCWorkServer* server, CRCNetClientS* client, CRCJson& msg)
 {
-    CRCLog_Info("GenController::cs_msg_heart");
+    //CRCLog_Info("GenController::cs_msg_heart");
 
-    CRCJson ret;
-    ret.Add("data", "wo ye bu ji dao.");
-    client->response(msg, ret);
-
-    //client->respone(msg, "wo ye bu ji dao.");
+    //CRCJson ret;
+    //ret.Add("data", "heart success");
+    //client->response(msg, ret);
 }
 
 void 
@@ -64,6 +62,8 @@ GenController::ss_reg_api(CRCWorkServer* server, CRCNetClientS* client, CRCJson&
         CRCLog_Info("ss_reg_api: %s >> %s", name.c_str(), apis(i).c_str());
         _transfer.add(apis(i), client);
     }
+
+    client->response(msg, "ss_reg_api ok!");
 }
 
 void 

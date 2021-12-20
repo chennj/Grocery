@@ -17,8 +17,6 @@ public:
 private:
     void onopen_csCtrl(CRCNetClientC* client, CRCJson& msg);
 
-    void cs_msg_heart(CRCNetClientC* client, CRCJson& msg);
-
     void cs_msg_login(CRCNetClientC* client, CRCJson& msg);
 };
 

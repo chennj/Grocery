@@ -42,6 +42,8 @@ public:
 
 	size_t getClientCount();
 
+	CRCClient* find_client(int id);
+
 	virtual bool DoNetEvents() = 0;
 
 	virtual void setClientNum(int nSocketNum);

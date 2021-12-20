@@ -48,6 +48,7 @@ CRCNetClientS::response(int msgId, std::string data)
 {
     CRCJson ret;
     ret.Add("msgId", msgId);
+    ret.Add("is_resp", true, true);
     ret.Add("time", CRCTime::system_clock_now());
     ret.Add("data", data);
 
@@ -67,6 +68,7 @@ CRCNetClientS::response(CRCJson& msg, std::string data)
 
     CRCJson ret;
     ret.Add("msgId", msgId);
+    ret.Add("is_resp", true, true);
     ret.Add("time", CRCTime::system_clock_now());
     ret.Add("data", data);
 
@@ -85,6 +87,7 @@ CRCNetClientS::response(CRCJson& msg, CRCJson& ret)
     }
 
     ret.Add("msgId", msgId);
+    ret.Add("is_resp", true, true);
     ret.Add("time", CRCTime::system_clock_now());
 
     std::string retStr = ret.ToString();
