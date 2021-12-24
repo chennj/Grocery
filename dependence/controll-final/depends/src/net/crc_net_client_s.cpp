@@ -31,6 +31,18 @@ CRCNetClientS::link_type(std::string& str)
     _link_type = str;
 }
 
+std::string& 
+CRCNetClientS::link_group()
+{
+    return _link_group;
+}
+
+void 
+CRCNetClientS::link_group(std::string& str)
+{
+    _link_group = str;
+}
+
 bool 
 CRCNetClientS::is_ss_link()
 {

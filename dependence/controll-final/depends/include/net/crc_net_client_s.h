@@ -11,6 +11,8 @@ class CRCNetClientS : public CRCClientSWebSocket
 private:
     std::string _link_name;
     std::string _link_type = "client";
+    std::string _link_group = "0000";
+
     bool _is_ss_link = false;
 public:
     CRCNetClientS(SOCKET sockfd = INVALID_SOCKET, int sendSize = SEND_BUFF_SZIE, int recvSize = RECV_BUFF_SZIE);
@@ -22,6 +24,10 @@ public:
     std::string& link_type();
 
     void link_type(std::string& str);
+
+    std::string& link_group();
+
+    void link_group(std::string& str);
 
     bool is_ss_link();
 

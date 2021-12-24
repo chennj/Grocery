@@ -103,7 +103,13 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
             return;
         }
 
-        auto client = dynamic_cast<CRCNetClientS*>( pServer->find_client(clientId));
+        //auto client = dynamic_cast<CRCNetClientS*>( pServer->find_client(clientId));
+        CRCNetClientS* client = nullptr;
+        for (CRCWorkServer* server : workServers())
+        {
+            client = dynamic_cast<CRCNetClientS*>( server->find_client(clientId));
+            if (client) {break;}
+        }
         if (!client)
         {
             CRCLog_Error("CRCNetServer::OnNetMsgWS::pServer->find_client(%d) miss.", clientId);

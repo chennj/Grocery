@@ -74,7 +74,6 @@ CRCEasyWebSocketClient::OnNetMsg(CRCDataHeader* header)
 bool 
 CRCEasyWebSocketClient::handshake()
 {
-
     CRCClientCWebSocket* pWSClient = dynamic_cast<CRCClientCWebSocket*>(_pClient);
     if (!pWSClient)
         return false;

@@ -20,4 +20,6 @@ controller:
 
 .PHONY: clean
 clean:
+	rm -rf *.o
+	rm -rf *.txt
 	rm -rf controller 

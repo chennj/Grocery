@@ -9,9 +9,9 @@ class CRCEasyWebSocketClient : public CRCIO::TcpClientMgr
 public:
     CRCEasyWebSocketClient();
 protected:
-    virtual CRCClient* makeClientObj(SOCKET cSock, int sendSize, int recvSize);
+    virtual CRCClient* makeClientObj(SOCKET cSock, int sendSize, int recvSize) override;
 
-    virtual void OnDisconnect();
+    virtual void OnDisconnect() override;
 public:
     virtual void OnNetMsg(CRCDataHeader* header) override;
 
@@ -19,9 +19,9 @@ public:
 
     bool connect(const char* httpurl);
 
-    int hostname2ip(const char* hostname, const char* port);
+    int  hostname2ip(const char* hostname, const char* port);
 
-    int writeText(const char* pData, int len);
+    int  writeText(const char* pData, int len);
 
     void send_buff_size(int n);
 

@@ -41,9 +41,11 @@ GenController::ss_reg_api(CRCWorkServer* server, CRCNetClientS* client, CRCJson&
     }
     auto type = msg["data"]("type");
     auto name = msg["data"]("name");
+    auto gpid = msg["data"]("groudid");
 
     client->link_type(type);
     client->link_name(name);
+    client->link_group(gpid);
     client->is_ss_link(true);
 
     auto apis = msg["data"]["apis"];
@@ -59,8 +61,9 @@ GenController::ss_reg_api(CRCWorkServer* server, CRCNetClientS* client, CRCJson&
     int size = apis.GetArraySize();
     for (size_t i = 0; i < size; i++)
     {
-        CRCLog_Info("ss_reg_api: %s >> %s", name.c_str(), apis(i).c_str());
-        _transfer.add(apis(i), client);
+        std::string cmd = gpid + ":" + apis(i);
+        _transfer.add(cmd, client);
+        CRCLog_Info("ss_reg_api: %s >> %s", name.c_str(), cmd.c_str());
     }
 
     client->response(msg, "ss_reg_api ok!");

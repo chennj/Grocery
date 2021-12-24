@@ -81,6 +81,23 @@ void reverse_int(unsigned int v, unsigned int* ret)
 	}
 }
 
+#include <type_traits>
+template<typename It>
+auto fcn(It beg)->decltype(*beg)
+{
+	return *beg;
+};
+template<typename It>
+auto fcn(It beg)->typename std::remove_reference<decltype(*beg)>::type
+{
+	return *beg;
+};
+	
+template<class T1, class T2>
+void print_is_same() {
+	std::cout << std::is_same<T1, T2>() << '\n';
+};
+
 int main()
 {
 #if 0 //算法实验
@@ -283,6 +300,7 @@ int main()
 
 #endif
 
+#if 0
 	struct _data {
 		int a, b, c;
 		char ary[0];
@@ -292,5 +310,47 @@ int main()
 	std::cout << "str len:" << sizeof(str) << std::endl;
 	memcpy(data.ary, str, sizeof(str));
 	std::cout << data.ary << ", size:" << sizeof(data) << std::endl;
+	return 0;
+#endif
+
+	//空指针访问类成员函数
+	/*
+	类的对象指针为空时，并不是指该对象就不存在，当我们的指针没有用来指向其他地方时，此时该指针都可以调用类中成员函数，
+	但无法调用其虚函数。同样的道理，当我们用 delete 释放一个类的对象内存空间时，并不是将该对象内存空间进行清除，
+	而是将这块内存的使用权释放了，但里面的东西可能还依然存在，所以在这块内存被其他对象占用之前里面的东西依然会存在，
+	所以即使我们将对象指针指向空后，依然可以调用类中的函数。这里要强调的是，delete只是把指针所指的内存释放掉，
+	并没有把指针本身给干掉。我们平常将指针所指内存释放掉之后会让内存指向空，这是为了防止产生野指针，
+	为了下次调用指针的时候方便判断使用，并不是将该指针指向NULL后指针什么都没有了。
+	*/
+	class A {
+	public:
+		void foo() { std::cout << "foo" << std::endl; }
+		void foo1() { std::cout << "a: " << a << std::endl; }
+		virtual void foo2() { std::cout << "foo 2" << std::endl; }
+	public:
+		int a=1;
+	};
+
+	A* pa = new A();
+	decltype(pa) p = pa;
+	p->foo();
+
+	delete pa;
+	p->foo();
+	p->foo1();
+	//pa->foo2();
+	pa = nullptr;
+	p->foo();
+	//pa->foo1();
+	//pa->foo2();
+
+	print_is_same<int, int>();
+	print_is_same<int, int &>();
+	print_is_same<int, int &&>();
+
+	print_is_same<int, std::remove_reference<int>::type>();
+	print_is_same<int, std::remove_reference<int &>::type>();
+	print_is_same<int, std::remove_reference<int &&>::type>();
+
 	return 0;
 }
