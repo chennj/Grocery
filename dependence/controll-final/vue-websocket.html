@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>websocket-client</title>
+	<!--
+	<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+	-->
+	<script src="vue.js"></script>
+</head>
+<body>
+<div id="main">
+ 
+    <!-- 激活的菜单样式为  active 类 -->
+    <!-- 为了阻止链接在点击时跳转，我们使用了 "prevent" 修饰符 (preventDefault 的简称)。 -->
+ 
+    <nav v-bind:class="active" v-on:click.prevent>
+ 
+        <!-- 当菜单上的链接被点击时，我们调用了 makeActive 方法, 该方法在 Vue 实例中创建。 -->
+ 
+        <a href="#" class="home" v-on:click="_send()">send</a>
+        <a href="#" class="projects" v-on:click="makeActive('projects')">Projects</a>
+        <a href="#" class="services" v-on:click="makeActive('services')">Services</a>
+        <a href="#" class="contact" v-on:click="makeActive('contact')">Contact</a>
+    </nav>
+ 
+     <!-- 以下 "active" 变量会根据当前选中的值来自动变换 -->
+ 
+    <p>您选择了 <b>{{active}} 菜单</b></p>
+</div>
+ 
+<script>
+// 创建一个新的 Vue 实例
+var demo = new Vue({
+    // DOM 元素，挂载视图模型
+    el: '#main',
+ 
+    // 定义属性，并设置初始值
+    data: {
+		active: 'home',
+        websock: null,
+    },
+	
+	created() {
+      this.initWebSocket();
+    },
+    destroyed() {
+      this.websock.close() //离开路由之后断开websocket连接
+    },
+	
+    // 点击菜单使用的函数
+    methods: {
+        makeActive: function(item){
+            // 模型改变，视图会自动更新
+            this.active = item;
+        },
+		_send: function(){
+            var jsonObj = {
+                cmd:"0000:cs_msg_login",
+                is_req:true,
+                msgId:1,
+                time:Date.now(),
+                data:"hello"
+            }
+            var jsonstr = JSON.stringify(jsonObj);
+            console.log(jsonstr);
+            if (this.websock.readyState == WebSocket.OPEN) {
+                this.websocketsend(jsonstr);
+            } else {
+                console.log("send failed. websocket not open. please check.");
+            }
+        },
+	initWebSocket(){ //初始化weosocket
+        const wsuri = "ws://192.168.137.129:4567/test?a=1&b=2";
+        this.websock = new WebSocket(wsuri);
+        this.websock.onmessage = this.websocketonmessage;
+        this.websock.onopen = this.websocketonopen;
+        this.websock.onerror = this.websocketonerror;
+        this.websock.onclose = this.websocketclose;
+      },
+      websocketonopen(){ //连接建立之后执行send方法发送数据
+        //let actions = {"test":"12345"};
+        //this.websocketsend(JSON.stringify(actions));
+		console.log("Connected to WebSocket server.");
+      },
+      websocketonerror(){//连接建立失败重连
+        this.initWebSocket();
+      },
+      websocketonmessage(e){ //数据接收
+        const redata = JSON.parse(e.data);
+      },
+      websocketsend(Data){//数据发送
+        this.websock.send(Data);
+      },
+      websocketclose(e){  //关闭
+        console.log('断开连接',e);
+      },
+    }
+});
+/*
+data(){
+    return{
+        websock: null,
+        reconnectData:null,
+        lockReconnect:false,    //避免重复连接，因为onerror之后会立即触发 onclose
+        timeout:10000,          //10s一次心跳检测
+        timeoutObj:null,
+        serverTimeoutObj:null,
+    }
+},
+created(){
+    this.initWebSocket();
+},
+methods:{
+    initWebSocket(){
+        console.log('启动中')
+        let wsurl = '你的websockt url';
+        this.websock = new WebSocket(wsurl);
+        this.websock.onopen = this.websocketonopen;          //连接成功
+        this.websock.onmessage = this.websocketonmessage;    //广播成功
+        this.websock.onerror = this.websocketonerror;        //连接断开，失败
+        this.websock.onclose = this.websocketclose;          //连接关闭
+    },             //初始化weosocket
+    websocketonopen(){
+        console.log('连接成功')
+        this.heatBeat();
+    },           //连接成功
+    websocketonerror(){
+        console.log('连接失败')
+        this.reconnect();
+    },          //连接失败
+    websocketclose(){
+        console.log('断开连接');
+        this.reconnect();
+    },            //各种问题导致的 连接关闭
+    websocketonmessage(data){
+        this.heatBeat();      //收到消息会刷新心跳检测，如果一直收到消息，就推迟心跳发送
+        let msgData = JSON.parse(data);
+    },    //数据接收
+    websocketsend(data){
+        this.websock.send(JSON.stringify(data));
+    },         //数据发送
+    reconnect(){
+        if(this.lockReconnect){       //这里很关键，因为连接失败之后之后会相继触发 连接关闭，不然会连接上两个 WebSocket
+            return
+        }
+        this.lockReconnect = true;
+        this.reconnectData && clearTimeout(this.reconnectData);
+        this.reconnectData = setTimeout(()=>{
+            this.initWebSocket();
+            this.lockReconnect = false;
+        },5000)
+    },                 //socket重连
+    heatBeat(){
+        this.timeoutObj && clearTimeout(this.timeoutObj);
+        this.serverTimeoutObj && clearTimeout(this.serverTimeoutObj);
+        this.timeoutObj = setTimeout(()=>{
+            this.websocketsend({type:'心跳检测'})   //根据后台要求发送
+            this.serverTimeoutObj = setTimeout(()=> {
+                this.websock.close();       //如果  5秒之后我们没有收到 后台返回的心跳检测数据 断开socket，断开后会启动重连机制
+            }, 5000);
+        }, this.timeout)
+    },                  //心跳检测
+},
+destroyed() {
+    this.lockReconnect = true;
+    this.websock.close()                   //离开路由之后断开websocket连接
+    clearTimeout(this.reconnectData);      //离开清除 timeout
+    clearTimeout(this.timeoutObj);         //离开清除 timeout
+    clearTimeout(this.serverTimeoutObj);   //离开清除 timeout
+}
+*/
+</script>
+
+</body>
+</html>
