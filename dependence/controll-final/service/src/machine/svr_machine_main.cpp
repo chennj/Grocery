@@ -3,7 +3,7 @@
 int main(int argc, char* args[])
 {
 	//设置运行日志名称
-	CRCLog::Instance().setLogPath("LoginServerLog", "w", false);
+	CRCLog::Instance().setLogPath("MachineServerLog", "w", false);
 	CRCConfig::Instance().Init(argc, args);
 
 	MachineServer server;

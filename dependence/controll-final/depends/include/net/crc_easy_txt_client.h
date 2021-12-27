@@ -4,8 +4,6 @@
 #include "crc_tcp_client_mgr.h"
 #include "crc_client_c_txt.h"
 
-class CRCEasyWebSocketClient;
-
 class CRCEasyTxtClient : public CRCIO::TcpClientMgr
 {
 public:
@@ -27,8 +25,6 @@ public:
     bool auth();
     //连接，并发送认证请求，修改连接状态为 join
     bool connect(int af, const char* ip, unsigned short port);
-    //设置返回的源 client
-    void setPairClient(CRCEasyWebSocketClient* client);
 
 private:
     //客户端发送缓冲区大小
@@ -37,8 +33,6 @@ private:
     int _nRecvBuffSize = RECV_BUFF_SZIE;
     //是否接到回复再发送下一条消息
     bool _sendback = false;
-    //pair client
-    CRCEasyWebSocketClient* _pPairClient;
 
 public:
     //回调函数定义

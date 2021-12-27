@@ -110,9 +110,3 @@ CRCEasyTxtClient::connect(int af, const char* ip, unsigned short port)
 
     return true;
 }
-
-void 
-CRCEasyTxtClient::setPairClient(CRCEasyWebSocketClient* client)
-{
-    _pPairClient = client;
-}

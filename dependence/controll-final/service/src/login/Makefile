@@ -21,3 +21,4 @@ loginserver:
 .PHONY: clean
 clean:
 	rm -rf loginserver 
+	rm -rf *.txt

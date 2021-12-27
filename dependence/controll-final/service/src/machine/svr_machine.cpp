@@ -45,6 +45,14 @@ MachineServer::MachineLoop(CRCThread* pThread)
     _csMachine.onmessage = [this](CRCClientCTxt* pTxtClient){
         std::string ss = pTxtClient->getContent();
         CRCLog_Info("MachineLoop info: %s",ss.c_str());
+        CRCJson msg;
+        {
+            std::lock_guard<std::mutex> lock(_task_queue_mtx);
+            msg = _task_queue.front();
+            _task_queue.pop();
+        }
+        msg.Add("data", ss);
+        _csCtrl.response(msg, msg);
     };
 
     while(pThread->isRun()){
@@ -52,7 +60,35 @@ MachineServer::MachineLoop(CRCThread* pThread)
         if (_csMachine.isRun())
         {
             _csMachine.OnRun();
-            continue;
+            //如果有任务
+            if (!_task_queue.empty())
+            {
+                CRCJson msg;
+                {
+                    std::lock_guard<std::mutex> lock(_task_queue_mtx);
+                    msg = _task_queue.front();
+                }
+
+                std::string cmdsub = msg("cmdsub");
+                if (cmdsub.compare("out")==0){
+                    cmdsub = "MLOU,0x6001,\n";
+                }else {
+                    cmdsub = "MLIN,0x6001,\n";
+                }
+
+                CRCLog_Info("MachineServer::cs_machine_mailbox cmd %s", cmdsub.c_str());
+
+                _csMachine.writeText(cmdsub.c_str(), cmdsub.length());
+
+                continue;
+            }
+            //如果没有任务
+            if (_task_queue.empty())
+            {
+                CRCThread::Sleep(1);
+                continue;
+            }
+            
         }
 
         if (_csMachine.connect(AF_INET,"111.111.1.100", 2020))
@@ -88,20 +124,20 @@ MachineServer::cs_machine_mailbox(CRCNetClientC* client, CRCJson& msg)
 {
     CRCLog_Info("MachineServer::cs_machine_mailbox msg: %s", msg.ToString().c_str());
 
-    std::string cmdsub = msg["cmdsub"]("cmdsub");
-    std::string ss;
-    CRCLog_Info("MachineServer::cs_machine_mailbox cmdsub %s", cmdsub.c_str());
-    if (cmdsub.compare("out")==0){
-        ss = "MLOU,0x6001,\n";
-    }else {
-        ss = "MLIN,0x6001,\n";
+    CRCJson ret;
+    if (!_thread.isRun())
+    {
+        ret.Add("data", "machine client is offline");
+        client->response(msg, ret);
+        return;
     }
 
-    CRCLog_Info("MachineServer::cs_machine_mailbox ss %s", ss.c_str());
+    if (!_csMachine.isRun()){
+        ret.Add("data", "machine server is offline");
+        client->response(msg, ret);
+        return;
+    }
 
-    _csMachine.writeText(ss.c_str(), ss.length());
-    
-    CRCJson ret;
-    ret.Add("data", "login successs.");
-    client->response(msg, ret);
+    std::unique_lock<std::mutex> lock(_task_queue_mtx);
+    _task_queue.push(msg);
 }
