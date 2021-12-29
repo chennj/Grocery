@@ -19,9 +19,12 @@ private:
     //连接设备服务器的线程
     CRCThread           _thread;
     //任务缓冲队列
-    std::queue<CRCJson> _task_queue;
+    std::queue<CRCJson*> _task_queue;
     //任务缓冲队列锁
     std::mutex          _task_queue_mtx;
+
+public:
+    virtual ~MachineServer();
 
 public:
     void Init();

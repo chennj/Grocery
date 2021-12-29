@@ -39,6 +39,11 @@ CRCEasyTxtClient::OnNetMsg(CRCDataHeader* header)
             pTxtClient->onClose();
         }
     }else if (clientState_run == pTxtClient->state()) {
+
+        if (!pTxtClient->getResponseInfo()){
+            CRCLog_Error("CRCEasyTxtClient::OnNetMsg getResponseInfo failed");
+            return;
+        }
         std::string & ss = pTxtClient->getContent();
         if (ss.compare("PING") == 0)
         {
@@ -83,7 +88,8 @@ CRCEasyTxtClient::auth()
     CRCClientCTxt * pTxtClient = dynamic_cast<CRCClientCTxt*>(_pClient);
     std::string & ss = pTxtClient->getContent();
 
-    if (ss.compare("AUTH,0,\n") == 0){
+    if (ss.compare("AUTH,0,") == 0){
+        pTxtClient->setAuth(true);
         return true;
     } else {
         return false;

@@ -22,13 +22,14 @@ CRCClientCTxt::hasMsg()
 int 
 CRCClientCTxt::checkTxtResponse()
 {
-     CRCLog_Info("CRCClientCTxt::checkTxtResponse() <%s>", _recvBuff.data());
+    CRCLog_Info("CRCClientCTxt::checkTxtResponse() recv <%s>", _recvBuff.data());
 
     //查找http消息结束标记
     char* temp = strstr(_recvBuff.data(), "\n");
 
     //未找到表示消息还不完整
     if (!temp){
+        CRCLog_Warring("CRCClientCTxt::checkTxtResponse() message is incomplete");
         return 0;
     }
 
@@ -37,6 +38,7 @@ CRCClientCTxt::checkTxtResponse()
     temp += 1;
     //计算响应消息长度
     _txtLen = temp - _recvBuff.data();
+
     return 1;
 }
 
@@ -45,6 +47,7 @@ CRCClientCTxt::pop_front_msg()
 {
     if (_txtLen > 0)
     {
+        //CRCLog_Info("CRCClientCTxt::pop_front_msg _txtLen = 0");
         _recvBuff.pop(_txtLen);
         _txtLen = 0;
     }    
@@ -61,8 +64,25 @@ CRCClientCTxt::getResponseInfo()
     char* pp = _recvBuff.data();
     pp[_txtLen-1] = '\0';
 
-    CRCLog_Info("CRCClientCTxt::getResponseInfo <%s>", _recvBuff.data());
+    //CRCLog_Info("CRCClientCTxt::getResponseInfo <%s>", _recvBuff.data());
     _content =_recvBuff.data();
+
+    if (!_isAuthed){
+        //没有认证前，忽略这个消息
+        std::string ss = "CHAN,LASTVAST";
+        if (ss.compare(_content) == 0){
+            CRCLog_Warring("CRCClientCTxt::getResponseInfo MESSAGES received before authentication will be discarded");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void 
+CRCClientCTxt::setAuth(bool b)
+{
+    _isAuthed = b;
 }
 
 void 

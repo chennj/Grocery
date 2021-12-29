@@ -24,13 +24,21 @@ public:
     //确定收到完整消息的时候才能调用
     bool getResponseInfo();
 
+    //设置已经获得认证
+    //用于判断收到的消息是在认证前，还是在认证后
+    void setAuth(bool b);
+
+    //是否认证
+    inline bool getAuth(){return _isAuthed;}
+
     //获取内容
     inline std::string& getContent(){return _content;}
 
     void ping();
     void pong();
 public:
-    int _txtLen = 0;
+    int  _txtLen    = 0;
+    bool _isAuthed  = false;
     std::string _content;
 };
 
