@@ -29,7 +29,8 @@ GenController::cs_msg_heart(CRCWorkServer* server, CRCNetClientS* client, CRCJso
 void 
 GenController::ss_reg_api(CRCWorkServer* server, CRCNetClientS* client, CRCJson& msg)
 {
-    auto sskey = msg["data"]("sskey");
+    auto gpid   = msg("groupid");   
+    auto sskey  = msg["data"]("sskey");
     auto sskey_local = CRCConfig::Instance().getStr("sskey", "ssmm00@123456");
     if (sskey != sskey_local)
     {
@@ -39,9 +40,12 @@ GenController::ss_reg_api(CRCWorkServer* server, CRCNetClientS* client, CRCJson&
         client->response(msg, ret);
         return;
     }
+    if (gpid.empty()){
+        gpid = "0000";
+    }
+
     auto type = msg["data"]("type");
     auto name = msg["data"]("name");
-    auto gpid = msg["data"]("groudid");
 
     client->link_type(type);
     client->link_name(name);

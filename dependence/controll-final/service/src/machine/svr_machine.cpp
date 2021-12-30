@@ -11,11 +11,13 @@ MachineServer::~MachineServer()
 void 
 MachineServer::Init()
 {
+    _csCtrl.set_groupid("0001");
+
     _csCtrl.connect("csCtrl","ws://192.168.137.129:4567");
 
     _csCtrl.reg_msg_call("onopen", std::bind(&MachineServer::onopen_csCtrl, this, std::placeholders::_1, std::placeholders::_2));
 
-    _csCtrl.reg_msg_call("0001:cs_machine_mailbox", std::bind(&MachineServer::cs_machine_mailbox, this, std::placeholders::_1, std::placeholders::_2));
+    _csCtrl.reg_msg_call("cs_machine_mailbox", std::bind(&MachineServer::cs_machine_mailbox, this, std::placeholders::_1, std::placeholders::_2));
 
     _csMachine.onmessage = [this](CRCClientCTxt* pTxtClient){
 
@@ -69,7 +71,8 @@ MachineServer::MachineLoop(CRCThread* pThread)
     _csMachine.send_buff_size(s_size);
     _csMachine.recv_buff_size(r_size);        
 
-    while(pThread->isRun()){
+    while(pThread->isRun())
+    {
 
         if (_csMachine.isRun())
         {
@@ -77,44 +80,47 @@ MachineServer::MachineLoop(CRCThread* pThread)
             //如果有任务
             if (!_task_queue.empty())
             {
-                CRCJson& msg = *_task_queue.front();
+                CRCJson* pmsg = _task_queue.front();
                 {
                     //不做写动作，不用加锁
                     //std::lock_guard<std::mutex> lock(_task_queue_mtx);
                     //msg = _task_queue.front();
                 }
 
-                if (msg("status").compare("ready") != 0){
+                if ((*pmsg)("status").compare("ready") != 0){
                     continue;
                 }
 
-                std::string cmdsub = msg("cmdsub");
-                if (cmdsub.compare("out")==0){
-                    cmdsub = "MLOU,0x6001,\n";
-                }else {
-                    cmdsub = "MLIN,0x6001,\n";
+                std::string cmd;
+                if (!ParseCmd((*pmsg),cmd)){
+                    {
+                        std::lock_guard<std::mutex> lock(_task_queue_mtx);
+                        _task_queue.pop();
+                    }
+                    CRCJson ret;
+                    ret.Add("data", "UNSUPPORTED command");
+                    _csCtrl.response(*pmsg, ret);
+                    delete pmsg;
+                    continue;
                 }
-
-                if (SOCKET_ERROR != _csMachine.writeText(cmdsub.c_str(), cmdsub.length())){
-                    msg.Replace("status", "sent");
+                
+                if (SOCKET_ERROR != _csMachine.writeText(cmd.c_str(), cmd.length())){
+                    pmsg->Replace("status", "sent");
                 } else {       
                     CRCThread::Sleep(1000);
                 }
                 
-                continue;
-            }
-            //如果没有任务
-            if (_task_queue.empty())
-            {
+            } else {
                 CRCThread::Sleep(1);
-                continue;
             }
+
+            continue;
             
         }
 
         if (_csMachine.connect(AF_INET,"111.111.1.100", 2020))
         {
-            CRCLog_Warring("Machine::connect() success.");
+            CRCLog_Info("MachineLoop::connect machine success.");
             continue;
         }
 
@@ -129,11 +135,11 @@ MachineServer::onopen_csCtrl(CRCNetClientC* client, CRCJson& msg)
     json.Add("type",    "MachineServer");
     json.Add("name",    "MachineServer");
     json.Add("sskey",   "ssmm00@123456");
-    json.Add("groudid", "0001");
     json.AddEmptySubArray("apis");
     json["apis"].Add("cs_machine_cdrom");
     json["apis"].Add("cs_machine_mailbox");
     json["apis"].Add("cs_machine_printer");
+    json["apis"].Add("cs_machine_disclibrary");
 
     client->request("ss_reg_api", json, [](CRCNetClientC* client, CRCJson& msg) {
         CRCLog_Info("MachineServer::ss_reg_api return: %s", msg("data").c_str());
@@ -165,4 +171,41 @@ MachineServer::cs_machine_mailbox(CRCNetClientC* client, CRCJson& msg)
 
     std::unique_lock<std::mutex> lock(_task_queue_mtx);
     _task_queue.push(pmsg);
+}
+
+bool 
+MachineServer::ParseCmd(const CRCJson & json, std::string & cmd) const
+{
+    std::string&& command = json("cmd");
+
+    if (command.compare(CMD_MAILBOX) == 0)
+    {
+        std::string && cmdsub = json("cmdsub");
+        if (cmdsub.compare("out")==0){
+            cmd = "MLOU,0x6001,\n";
+            return true;
+        }
+        if (cmdsub.compare("in")==0){
+            cmd = "MLIN,0x6001,\n";
+            return true;
+        }
+    }
+
+    if (command.compare(CMD_CDROM))
+    {
+
+    }
+
+    if (command.compare(CMD_CDROM))
+    {
+        
+    }
+
+    if (command.compare(CMD_CDROM))
+    {
+        
+    }
+
+    return false;
+
 }

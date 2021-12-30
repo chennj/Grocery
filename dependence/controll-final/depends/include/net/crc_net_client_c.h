@@ -20,6 +20,8 @@ private:
     std::string _url;
     //
     int _msgId = 0;
+    //
+    std::string _groupid = "0000";
 private:
     //回调函数定义
     typedef std::function<void(CRCNetClientC*, CRCJson&)> NetEventCall;
@@ -51,6 +53,9 @@ public:
     void response(CRCJson& msg, std::string data);
     //响应请求：json对象
     void response(CRCJson& msg, CRCJson& ret);
+    //读写groupid
+    inline void set_groupid(std::string groupid){_groupid = groupid;}
+    inline std::string& get_groupid(){return _groupid;}
 };
 
 #endif //!_CRC_NET_CLIENT_C_H_

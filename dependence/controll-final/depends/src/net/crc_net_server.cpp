@@ -85,6 +85,13 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         CRCLog_Error("not found key<%s>.", "time");
         return;
     }
+
+    std::string groupid;
+    if (!json.Get("groupid", groupid))
+    {
+        CRCLog_Error("not found key<%s>.", "groupid");
+        return;
+    }
     
     //服务端响应
     bool is_resp = false;
@@ -144,10 +151,13 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         int clientId = (int)pWSClient->sockfd();
         json.Add("clientId", clientId);
 
+        //本地服务器服务不用分组
         if (on_net_msg_do(pServer, pWSClient, cmd, json))
             return;
 
-        on_other_msg(pServer, pWSClient, cmd, json);
+        //客户提供服务需要分组
+        groupid.append(":").append(cmd);
+        on_other_msg(pServer, pWSClient, groupid, json);
 
         return;
     }
@@ -190,7 +200,7 @@ CRCNetServer::reg_msg_call(std::string cmd, NetEventCall call)
 }
 
 bool 
-CRCNetServer::on_net_msg_do(CRCWorkServer* pServer, CRCNetClientS* pWSClient, std::string& cmd, neb::CJsonObject& msgJson)
+CRCNetServer::on_net_msg_do(CRCWorkServer* pServer, CRCNetClientS* pWSClient, std::string& cmd, CRCJson& msgJson)
 {
     auto itr = _map_msg_call.find(cmd);
     if (itr != _map_msg_call.end())

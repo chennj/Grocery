@@ -3,11 +3,13 @@
 void 
 LoginServer::Init()
 {
+    _csCtrl.set_groupid("0000");
+
     _csCtrl.connect("csCtrl","ws://192.168.137.129:4567");
 
     _csCtrl.reg_msg_call("onopen", std::bind(&LoginServer::onopen_csCtrl, this, std::placeholders::_1, std::placeholders::_2));
 
-    _csCtrl.reg_msg_call("0000:cs_msg_login", std::bind(&LoginServer::cs_msg_login, this, std::placeholders::_1, std::placeholders::_2));
+    _csCtrl.reg_msg_call("cs_msg_login", std::bind(&LoginServer::cs_msg_login, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void 
@@ -26,10 +28,9 @@ void
 LoginServer::onopen_csCtrl(CRCNetClientC* client, CRCJson& msg)
 {
     CRCJson json;
-    json.Add("type", "LoginServer");
-    json.Add("name", "LoginServer001");
-    json.Add("sskey", "ssmm00@123456");
-    json.Add("groudid", "0000");
+    json.Add("type",    "LoginServer");
+    json.Add("name",    "LoginServer001");
+    json.Add("sskey",   "ssmm00@123456");
     json.AddEmptySubArray("apis");
     json["apis"].Add("cs_msg_login");
     json["apis"].Add("cs_msg_register");

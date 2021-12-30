@@ -7,6 +7,11 @@
 #include <queue>
 #include <mutex>
 
+#define CMD_MAILBOX         "cs_machine_mailbox"
+#define CMD_CDROM           "cs_machine_cdrom"
+#define CMD_PRINTER         "cs_machine_printer"
+#define CMD_DISCLIBRARY     "cs_machine_disclibrary"
+
 class MachineServer
 {
 private:
@@ -22,7 +27,6 @@ private:
     std::queue<CRCJson*> _task_queue;
     //任务缓冲队列锁
     std::mutex          _task_queue_mtx;
-
 public:
     virtual ~MachineServer();
 
@@ -32,6 +36,8 @@ public:
     void Run();
 
     void Close();
+
+    bool ParseCmd(const CRCJson & json, std::string & cmd) const;
 
     void MachineLoop(CRCThread* pThread);
 

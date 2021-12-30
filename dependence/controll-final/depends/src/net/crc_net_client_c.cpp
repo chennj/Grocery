@@ -169,11 +169,12 @@ CRCNetClientC::request(const std::string& cmd, CRCJson& data)
     _time2heart.update();
 
     CRCJson msg;
-    msg.Add("cmd", cmd);
-    msg.Add("is_req", true, true);
-    msg.Add("msgId", ++_msgId);
-    msg.Add("time", CRCTime::system_clock_now());
-    msg.Add("data", data);
+    msg.Add("cmd",      cmd);
+    msg.Add("is_req",   true, true);
+    msg.Add("msgId",    ++_msgId);
+    msg.Add("groupid", _groupid);
+    msg.Add("time",     CRCTime::system_clock_now());
+    msg.Add("data",     data);
 
     std::string retStr = msg.ToString();
     _client.writeText(retStr.c_str(), retStr.length());
@@ -185,9 +186,11 @@ CRCNetClientC::request(const std::string& cmd, CRCJson& data, NetEventCall call)
     _time2heart.update();
     
     CRCJson msg;
-    msg.Add("cmd", cmd);
-    msg.Add("is_req", true, true);
-    msg.Add("msgId", ++_msgId);
+    msg.Add("cmd",      cmd);
+    msg.Add("is_req",   true, true);
+    msg.Add("msgId",    ++_msgId);
+    msg.Add("groupid",  _groupid);
+
     _map_request_call[_msgId] = call;
 
     msg.Add("time", CRCTime::system_clock_now());
@@ -201,10 +204,11 @@ void
 CRCNetClientC::response(int msgId, std::string data)
 {
     CRCJson ret;
-    ret.Add("msgId", msgId);
-    ret.Add("is_resp", true, true);
-    ret.Add("time", CRCTime::system_clock_now());
-    ret.Add("data", data);
+    ret.Add("msgId",    msgId);
+    ret.Add("is_resp",  true, true);
+    ret.Add("time",     CRCTime::system_clock_now());
+    ret.Add("data",     data);
+    ret.Add("groupid",  _groupid);
 
     std::string retStr = ret.ToString();
     _client.writeText(retStr.c_str(), retStr.length());
@@ -221,10 +225,11 @@ CRCNetClientC::response(CRCJson& msg, std::string data)
     }
 
     CRCJson ret;
-    ret.Add("msgId", msgId);
-    ret.Add("is_resp", true, true);
-    ret.Add("time", CRCTime::system_clock_now());
-    ret.Add("data", data);
+    ret.Add("msgId",    msgId);
+    ret.Add("is_resp",  true, true);
+    ret.Add("time",     CRCTime::system_clock_now());
+    ret.Add("data",     data);
+    ret.Add("groupid",  _groupid);
 
     std::string retStr = ret.ToString();
     _client.writeText(retStr.c_str(), retStr.length());
@@ -247,10 +252,11 @@ CRCNetClientC::response(CRCJson& msg, CRCJson& ret)
         return;
     }
 
-    ret.Add("msgId", msgId);
+    ret.Add("msgId",    msgId);
     ret.Add("clientId", clientId);
-    ret.Add("is_resp", true, true);
-    ret.Add("time", CRCTime::system_clock_now());
+    ret.Add("is_resp",  true, true);
+    ret.Add("time",     CRCTime::system_clock_now());
+    ret.Add("groupid",  _groupid);
 
     std::string retStr = ret.ToString();
     _client.writeText(retStr.c_str(), retStr.length());
