@@ -141,12 +141,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\dependence\tools\threadpool\CRCThreadPool.h" />
     <ClInclude Include="src\algorithm\DP\Solution.h" />
     <ClInclude Include="src\algorithm\b-tree\BTree.h" />
     <ClInclude Include="src\common\Base.h" />
     <ClInclude Include="src\skill\Skill.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\dependence\tools\threadpool\CRCThreadPool.cpp" />
     <ClCompile Include="src\algorithm\DP\Solution.cpp" />
     <ClCompile Include="src\algorithm\b-tree\BTree.cpp" />
     <ClCompile Include="src\main.cpp" />

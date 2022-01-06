@@ -11,6 +11,12 @@ MachineServer::~MachineServer()
 void 
 MachineServer::Init()
 {
+    //启动时获取设备信息的任务加入本地队列，确保是第一个执行的任务
+    CRCJson * pMsg = new CRCJson();
+    pMsg->Add("cmd","GMAP");
+    _local_task_queue.push(pMsg);
+
+    //连接总控,注册服务
     _csCtrl.set_groupid("0001");
 
     _csCtrl.connect("csCtrl","ws://192.168.137.129:4567");
@@ -19,11 +25,13 @@ MachineServer::Init()
 
     _csCtrl.reg_msg_call("cs_machine_mailbox", std::bind(&MachineServer::cs_machine_mailbox, this, std::placeholders::_1, std::placeholders::_2));
 
+    //设置处理来自设备的信息的回调处理函数
     _csMachine.onmessage = [this](CRCClientCTxt* pTxtClient){
 
         std::string& ss = pTxtClient->getContent();
         
         CRCJson* pmsg = nullptr;
+        if (!_task_queue.empty())
         {
             std::lock_guard<std::mutex> lock(_task_queue_mtx);
             pmsg = _task_queue.front();
@@ -32,12 +40,14 @@ MachineServer::Init()
 
         CRCLog_Info("_csMachine.onmessage: recv %s; msg %s",ss.c_str(), pmsg->ToString().c_str());
 
-        CRCJson ret;
-        ret.Add("data", ss);
-        _csCtrl.response(*pmsg, ret);
+        OnProcess4Equipment(pmsg, ss);
+
         delete pmsg;
     };
 
+    //1. 连接设备，断线重连
+    //2. 轮询任务列表
+    //3. 分析任务，如果合法就向设备发送命令，否则直接返回客户端
     _thread.Start(
         //onCreate
         nullptr,
@@ -139,7 +149,7 @@ MachineServer::onopen_csCtrl(CRCNetClientC* client, CRCJson& msg)
     json["apis"].Add("cs_machine_cdrom");
     json["apis"].Add("cs_machine_mailbox");
     json["apis"].Add("cs_machine_printer");
-    json["apis"].Add("cs_machine_disclibrary");
+    json["apis"].Add("cs_machine_query");
 
     client->request("ss_reg_api", json, [](CRCNetClientC* client, CRCJson& msg) {
         CRCLog_Info("MachineServer::ss_reg_api return: %s", msg("data").c_str());
@@ -196,16 +206,24 @@ MachineServer::ParseCmd(const CRCJson & json, std::string & cmd) const
 
     }
 
-    if (command.compare(CMD_CDROM))
+    if (command.compare(CMD_PRINTER))
     {
         
     }
 
-    if (command.compare(CMD_CDROM))
+    if (command.compare(CMD_QUERY))
     {
         
     }
 
     return false;
 
+}
+
+bool 
+MachineServer::OnProcess4Equipment(CRCJson * pMsg, std::string& str4Eqpt)
+{
+    CRCJson ret;
+    ret.Add("data", str4Eqpt);
+    _csCtrl.response(*pMsg, ret);    
 }

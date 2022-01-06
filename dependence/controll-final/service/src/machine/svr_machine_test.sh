@@ -10,9 +10,9 @@ cmd="${cmd} nThread=2"
 cmd="${cmd} nMaxClient=100"
 cmd="${cmd} sendback=1"
 #客户端发送缓冲区大小（字节）
-cmd="${cmd} nSendBuffSize=102400"
+cmd="${cmd} nSendBuffSize=10240"
 #客户端接收缓冲区大小（字节）
-cmd="${cmd} nRecvBuffSize=102400"
+cmd="${cmd} nRecvBuffSize=32768"
 #检查接收到的服务端消息ID是否连续
 cmd="${cmd} -checkMsgID"
 #收到回应后才发送下一条消息

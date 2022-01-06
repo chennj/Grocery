@@ -16,6 +16,9 @@
     <Filter Include="skill">
       <UniqueIdentifier>{A47B5C10-1090-84C1-D911-282145E580F2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="threadpool">
+      <UniqueIdentifier>{18cc4c3a-89df-443a-a6b5-ca2ad7d064bb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\algorithm\DP\Solution.h">
@@ -30,6 +33,9 @@
     <ClInclude Include="src\skill\Skill.h">
       <Filter>skill</Filter>
     </ClInclude>
+    <ClInclude Include="..\dependence\tools\threadpool\CRCThreadPool.h">
+      <Filter>threadpool</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\algorithm\DP\Solution.cpp">
@@ -39,5 +45,8 @@
       <Filter>algorithm\b-tree</Filter>
     </ClCompile>
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="..\dependence\tools\threadpool\CRCThreadPool.cpp">
+      <Filter>threadpool</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
