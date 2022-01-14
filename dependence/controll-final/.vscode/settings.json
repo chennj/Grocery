@@ -56,7 +56,8 @@
     "editor.minimap.enabled": false,
     "clang.cxxflags": [
         "-std=c++11",
-        "-I${workspaceRoot}/depends/include/net/"
+        "-I${workspaceRoot}/depends/include/net/",
+        "-I${workspaceRoot}/dvdrw-medinfo/"
     ],
 
 }

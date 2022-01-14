@@ -18,7 +18,7 @@ cmd="${cmd} -checkMsgID"
 #收到回应后才发送下一条消息
 cmd="${cmd} -sendback"
 #启动服务端
-./mserver $cmd
+./machineserver $cmd
 #
 #read -p "..按任意键退出.." var
 #read -p "Press any key to exit." var

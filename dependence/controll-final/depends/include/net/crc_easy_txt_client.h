@@ -28,9 +28,9 @@ public:
 
 private:
     //客户端发送缓冲区大小
-    int _nSendBuffSize = SEND_BUFF_SZIE;
+    int  _nSendBuffSize = SEND_BUFF_SZIE;
     //客户端接收缓冲区大小
-    int _nRecvBuffSize = RECV_BUFF_SZIE;
+    int  _nRecvBuffSize = RECV_BUFF_SZIE;
     //是否接到回复再发送下一条消息
     bool _sendback = false;
 

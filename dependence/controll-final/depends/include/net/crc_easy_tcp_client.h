@@ -58,6 +58,7 @@ protected:
 	int _address_family = AF_INET;
 	std::string _scope_id_name;
 	bool _isConnect = false;
+	volatile bool _stopRead = false;
 };
 
 #endif

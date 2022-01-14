@@ -1,4 +1,10 @@
 #include "CRCThreadPool.h"
+#include <iostream>
+
+int64_t getNowMs()
+{
+	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
 
 CRCThreadPool::CRCThreadPool()
 	:m_threadNum(1),m_bTerminate(false)
@@ -12,7 +18,7 @@ CRCThreadPool::~CRCThreadPool()
 
 bool CRCThreadPool::init(size_t num)
 {
-	unique_lock<mutex> lock(m_mutex);
+	std::unique_lock<std::mutex> lock(m_mutex);
 
 	if (!m_pThreads.empty())
 	{
@@ -23,9 +29,38 @@ bool CRCThreadPool::init(size_t num)
 	return true;
 }
 
+size_t CRCThreadPool::getThreadNum()
+{
+	std::unique_lock<std::mutex> lock(m_mutex);
+	return m_pThreads.size();
+}
+
+size_t CRCThreadPool::getJobNum()
+{
+	std::unique_lock<std::mutex> lock(m_mutex);
+	return m_tasks.size();
+}
+
+bool CRCThreadPool::waitForAllDone(int millsecond)
+{
+	std::unique_lock<std::mutex> lock(m_mutex);
+
+	if (m_tasks.empty()) {
+		return true;
+	}
+
+	if (millsecond < 0) {
+		m_condition.wait(lock, [this] {return m_tasks.empty(); });
+		return true;
+	}
+	else {
+		return m_condition.wait_for(lock, std::chrono::milliseconds(millsecond), [this] {return m_tasks.empty(); });
+	}
+}
+
 bool CRCThreadPool::start()
 {
-	unique_lock <mutex> lock(m_mutex);
+	std::unique_lock <std::mutex> lock(m_mutex);
 
 	if (!m_pThreads.empty()) {
 		return false;
@@ -34,7 +69,7 @@ bool CRCThreadPool::start()
 	for (size_t i = 0; i < m_threadNum; i++)
 	{
 		//下面传递 this 是为了可以开启多个线程池
-		m_pThreads.push_back(new thread(&CRCThreadPool::run, this));
+		m_pThreads.push_back(new std::thread(&CRCThreadPool::run, this));
 	}
 
 	return true;
@@ -43,12 +78,12 @@ bool CRCThreadPool::start()
 void CRCThreadPool::stop()
 {
 	{
-		unique_lock<mutex> lock(m_mutex);
+		std::unique_lock<std::mutex> lock(m_mutex);
 		m_bTerminate = true;
-		m_confition.notify_all();
+		m_condition.notify_all();
 	}
 
-	for (size_t i = 0; i < m_threadNum; i++)
+	for (size_t i = 0; i < m_pThreads.size(); i++)
 	{
 		if (m_pThreads[i]->joinable())
 		{
@@ -57,14 +92,17 @@ void CRCThreadPool::stop()
 		delete m_pThreads[i];
 		m_pThreads[i] = NULL;
 	}
+
+	std::unique_lock<std::mutex> lock(m_mutex);
+	m_pThreads.clear();
 }
 
-bool CRCThreadPool::get(TaskFuncPtr & task)
+bool CRCThreadPool::get(TaskFuncPtr& task)
 {
-	unique_lock<mutex> lock(m_mutex);
+	std::unique_lock<std::mutex> lock(m_mutex);
 
 	if (m_tasks.empty()) {
-		m_confition.wait(lock, [this] {return m_bTerminate || !m_tasks.empty(); });
+		m_condition.wait(lock, [this] {return m_bTerminate || !m_tasks.empty(); });
 	}
 
 	if (m_bTerminate) return false;
@@ -93,26 +131,27 @@ void CRCThreadPool::run()
 			{
 				if (task->m_expireTime != 0 && task->m_expireTime < TNOWMS)
 				{
-					//超市任务，是否需要处理
+					//超时任务，是否需要处理
+					std::cout << "has task timeout: " << task << std::endl;
 				}
 				else
 				{
-					task->m_func;	//执行任务
+					task->m_func();	//执行任务
 				}
 			}
-			catch (const std::exception&)
+			catch (const std::exception& e)
 			{
-
+				std::cout << "exception: " << e.what() << std::endl;
 			}
 
 			--m_atomic;
 
 			//任务执行完毕了
-			unique_lock<mutex> lock(m_mutex);
+			std::unique_lock<std::mutex> lock(m_mutex);
 			if (m_atomic == 0 && m_tasks.empty())
 			{
 				//通知 waitforalldone
-				m_confition.notify_all();
+				m_condition.notify_all();
 			}
 		}
 	}

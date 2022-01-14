@@ -1,7 +1,117 @@
 #include "common/Base.h"
 #include "algorithm/DP/Solution.h"
 #include <Windows.h>
-#include <ifnpub.h>
+
+#define THREADPOOL 1
+#if		THREADPOOL	//线程池
+#include "../../dependence/tools/threadpool/CRCThreadPool.h"
+
+class Test
+{
+public:
+	int test(int i) {
+		std::cout << _name << ", i = " << i << std::endl;
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		return i;
+	}
+	void setName(std::string name) {
+		_name = name;
+	}
+	std::string _name;
+};
+
+void func0()
+{
+	std::cout << "func0 is running..." << std::endl;
+	std::this_thread::sleep_for(std::chrono::milliseconds(10));
+}
+
+void func1(int a)
+{
+	std::cout << "func1 is running... a=" << a << std::endl;
+	std::this_thread::sleep_for(std::chrono::milliseconds(10));
+}
+
+void func2(int a, std::string b)
+{
+	std::cout << "func2 is running... a=" << a << ",b=" << b << std::endl;
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+}
+
+int func1_future(int a)
+{
+	std::cout << "func1 is running... a=" << a << std::endl;
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	return a;
+}
+
+std::string func2_future(int a, std::string b)
+{
+	std::cout << "func2() is running... a=" << a << ",b=" << b << std::endl;
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	return b;
+}
+
+//简单测试
+void test1()
+{
+	CRCThreadPool threadpool;
+	threadpool.init(1);
+	threadpool.start();								//启动线程池
+
+	//要执行的任务
+	threadpool.exec(1000, func0);
+	threadpool.exec(func1, 10);
+	threadpool.exec(func2, 20, "dofen");
+
+	//等待任务全部结束
+	threadpool.waitForAllDone();
+	threadpool.stop();
+}
+
+//测试异步返回值
+void test2()
+{
+	CRCThreadPool threadpool;
+	threadpool.init(1);
+	threadpool.start();								//启动线程池
+
+	//要执行的任务
+	std::future<decltype(func1_future(0))>	result1 = threadpool.exec(func1_future, 10);
+	std::future<std::string>				result2 = threadpool.exec(func2_future, 20, "dofen");
+
+	//等待任务全部结束
+	threadpool.waitForAllDone();
+	std::cout << "result1 = " << result1.get() << std::endl;
+	std::cout << "result2 = " << result2.get() << std::endl;
+
+	threadpool.stop();
+}
+
+//测试对象函数的绑定
+void test3()
+{
+	CRCThreadPool threadpool;
+	threadpool.init(1);
+	threadpool.start();								//启动线程池
+
+	//要执行的任务
+	Test t1, t2;
+	t1.setName("test1");
+	t2.setName("test2");
+
+	auto f1 = threadpool.exec(std::bind(&Test::test, &t1, std::placeholders::_1), 10);
+	auto f2 = threadpool.exec(std::bind(&Test::test, &t2, std::placeholders::_1), 20);
+
+	//等待任务全部结束
+	threadpool.waitForAllDone();
+	std::cout << "t1 result: " << f1.get() << std::endl;
+	std::cout << "t2 result: " << f2.get() << std::endl;
+
+	threadpool.stop();
+}
+#endif
+
 
 #if 0
 #define MAGSLOTMAX              128                 //最大盘仓数，依赖于单片机上的gpio数目
@@ -676,5 +786,14 @@ int main()
 
 #if 0
 	const int size = sizeof(MidasBox);
+#endif
+
+#if THREADPOOL	//线程池测试
+	std::cout << "异步线程池测试：普通函数    -------------------" << std::endl;
+	test1();
+	std::cout << "异步线程池测试：异步返回结果 -------------------" << std::endl;
+	test2();
+	std::cout << "异步线程池测试：象函数的绑定 -------------------" << std::endl;
+	test3();
 #endif
 }

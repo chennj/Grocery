@@ -24,12 +24,29 @@ CRCClientCTxt::checkTxtResponse()
 {
     CRCLog_Info("CRCClientCTxt::checkTxtResponse() recv <%s>", _recvBuff.data());
 
-    //查找http消息结束标记
-    char* temp = strstr(_recvBuff.data(), "\n");
+    //查找TXT消息结束标记
+    //char* temp = strstr(_recvBuff.data(), "\n");
+    //由于at91网络接口写的太烂，从前往后搜索可能中途碰到 ‘\n'
+    //消息实际上并没有传完
+    char*   temp    = _recvBuff.data()+_recvBuff.dataLen()-1;
+    bool    found   = false;
+    int     count   = 0;
+    for (int i = _recvBuff.dataLen(); i >= 1; i--)	
+    {
+        if (*temp == '\n')
+        {
+            found = true;
+            break;
+        }
+        temp--;
+        count++;
+    }
+
+    CRCLog_Info("CRCClientCTxt::checkTxtResponse() cycle count <%d>", count);
 
     //未找到表示消息还不完整
-    if (!temp){
-        CRCLog_Warring("CRCClientCTxt::checkTxtResponse() message is incomplete");
+    if (!found){
+        CRCLog_Warring("CRCClientCTxt::checkTxtResponse() message is incomplete, recv data len <%d>", _recvBuff.dataLen());
         return 0;
     }
 

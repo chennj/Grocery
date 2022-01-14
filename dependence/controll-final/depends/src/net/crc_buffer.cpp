@@ -42,12 +42,14 @@ CRCBuffer::push(const char* pData, int nLen)
 
         if (_nLast == SEND_BUFF_SZIE)
         {
+            CRCLog_Warring("recv buff full nSize<%d> nLast<%d> ", _nSize, _nLast);
             ++_fullCount;
         }
 
         return true;
     }
     else {
+        CRCLog_Warring("recv buff full nSize<%d> nLast<%d> ", _nSize, _nLast);
         ++_fullCount;
     }
 

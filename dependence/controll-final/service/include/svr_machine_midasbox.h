@@ -1,9 +1,9 @@
 #ifndef _SVR_MACHINE_MIDASBOX_H_
 #define _SVR_MACHINE_MIDASBOX_H_
 
-#define MAGSLOTMAX              128                 //最大盘仓数，依赖于单片机上的gpio数目
+#define MAGSLOTMAX              32                 	//最大盘仓数，依赖于单片机上的gpio数目
 #define MAILBOXMAX              1                   //最大邮箱数
-#define RECORDERMAX             32                  //最大光驱数
+#define RECORDERMAX             16                  //最大光驱数
 #define BRIDGEMAX               1                   //未知，待定
 
 #define MAXSTATIONMEDIA         MAGSLOTMAX*50       //最大盘槽数，每个盘仓50个槽，可放50张光盘
@@ -18,6 +18,12 @@
 #define INITIALIZE				0x05
 #define UPGRADE					0x06
 #define SHUTDOWN				0x0A
+
+
+/* 存在标志 presence_flag 类型 */
+#define  PRESENCE   			1					//存在
+#define  NOPRESENCE 			2					//不存在
+#define  UNKNOWN    			0					//未知
 
 /* LED3 POWER	LED2 PAPER	LED1 INK	LPC 2378
 OFF	闪烁	闪烁	0x0C 字车错误

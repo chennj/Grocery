@@ -47,6 +47,7 @@ CRCEasyEpollClient::OnRun(int microseconds)
             {
                 if (events[i].events & EPOLLIN)
                 {
+                    
                     if (SOCKET_ERROR == RecvData())
                     {
                         CRCLog_Error("<socket=%d>OnRun.epoll RecvData exit", pClient->sockfd());
