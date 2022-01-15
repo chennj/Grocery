@@ -23,6 +23,8 @@ public:
     int  writeText(const char* pData, int len);
     //检查认证
     bool auth();
+    //
+    bool isAuth();
     //连接，并发送认证请求，修改连接状态为 join
     bool connect(int af, const char* ip, unsigned short port);
 

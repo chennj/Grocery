@@ -18,7 +18,7 @@ void
 MachineServer::Init()
 {
     //第一次启动，设为盘点状态
-    m_current_state = INVENTORY;
+    m_current_state = INIT;
     
     //启动时获取设备信息的任务加入本地队列，确保是第一个执行的任务
     AddLocalTask(UPDATEMIDASBOX);
@@ -73,7 +73,7 @@ MachineServer::Init()
             return;
         }
 
-        OnProcess4Equipment(ss);
+        OnProcess4Equipment(ss, pTxtClient);
     };
 
     //1. 连接设备，断线重连
@@ -124,14 +124,22 @@ MachineServer::MachineLoop(CRCThread* pThread)
 
             //检查当前状态
             //-----------------------------------------------
-            if (m_current_state == EXCEPTION){
+            if (m_current_state == EXCEPTION){          //异常状态，全部暂停
                 CRCThread::Sleep(1);
                 continue;
             }
+
+            if (m_current_state == INIT){               //初始化状态，等待认证结束
+               if (_csMachine.isAuth()){
+                    m_current_state = RUN;
+               }
+               continue;
+            }
             
-            if (m_current_state == INVENTORY){          //如果在盘点中
+            if (m_current_state == INVENTORY){          //盘点状态，返回所有总控任务，只执行本地盘点任务
                 //返回总控所有的任务
-                while(!_task_queue.empty()){
+                while(!_task_queue.empty())
+                {
                     CRCJson * pjson = nullptr;
                     {
                         std::lock_guard<std::mutex> lock(_task_queue_mtx);
@@ -149,7 +157,8 @@ MachineServer::MachineLoop(CRCThread* pThread)
             //如果有本地任务，优先执行
             //-----------------------------------------------
             //先判断是否有已经发出的总控任务还没有返回
-            if (!_task_queue.empty()){
+            if (!_task_queue.empty())
+            {
                 CRCJson* pmsg = _task_queue.front();
                 if ((*pmsg)("status").compare("sent") == 0){
                     CRCThread::Sleep(1);
@@ -159,8 +168,8 @@ MachineServer::MachineLoop(CRCThread* pThread)
             //发送本地任务
             if (!_local_task_queue.empty())
             {
-                CRCJson* pmsg   = _local_task_queue.front();
-                std::string cmd = (*pmsg)("cmd");
+                CRCJson*    pmsg    = _local_task_queue.front();
+                std::string cmd     = (*pmsg)("cmd");
 
                 //任务已发送还未返回
                 if ((*pmsg)("status").compare("sent") == 0){
@@ -366,7 +375,7 @@ MachineServer::AddLocalTask(LocalTaskType localTaskType)
 }
 
 void 
-MachineServer::OnProcess4Equipment(std::string& str4Eqpt)
+MachineServer::OnProcess4Equipment(std::string& str4Eqpt, CRCClientCTxt* pTxtClient)
 {
     CRCJson* pmsg  = nullptr;
     
@@ -381,7 +390,7 @@ MachineServer::OnProcess4Equipment(std::string& str4Eqpt)
                 std::unique_lock<std::mutex> lock(_local_task_queue_mtx);
                 _local_task_queue.pop();
             }
-            update_storage_info(str4Eqpt);
+            update_storage_info(str4Eqpt, pTxtClient);
             return;
         }
     }
@@ -402,13 +411,15 @@ MachineServer::OnProcess4Equipment(std::string& str4Eqpt)
 }
 
 void
-MachineServer::update_storage_info(std::string& ss)
+MachineServer::update_storage_info(std::string& ss, CRCClientCTxt* pTxtClient)
 {
     //来之at91的 MidasBox
     //记录着所有设备信息
-    MidasBox* pMidasBox = nullptr;
+    MidasBox*   pMidasBox   = nullptr;
+    int         datalen     = pTxtClient->getRecvLen();
+
     //通过长度判断返回的是否 MidasBox
-    if (ss.size() != (sizeof(MidasBox)+6)){
+    if (datalen != (sizeof(MidasBox)+7)){
         CRCLog_Error("update_eqpt_info recv\n<%s>\n isn't midasbox",ss.c_str());
         return;
     }
@@ -423,10 +434,11 @@ MachineServer::update_storage_info(std::string& ss)
         pMidasBox->mag_slotarray,
         sizeof(MidasMagSlot)*MAGSLOTMAX
     );
-    //初始化盘槽状态 ,用于盘槽状态发生变化 需要重新更新状态
-    for (int i = 0;i < MAGSLOTMAX; i++)
+    //更新盘槽状态 ,用于盘槽状态发生变化 需要重新更新状态
+    CRCLog_Info("update mag slot ...");
+    for (int i = 0; i < MAGSLOTMAX; i++)
     {
-        if (pMidasBox->mag_slotarray[1].mag_plug == 0)
+        if (m_storage.mag_slotarray[i].mag_plug == 0)
         {
             printf("## %d mag is no plug !\n",i);
             for (int j = 0;j < MAGITEMMAX; j++)
@@ -487,4 +499,25 @@ MachineServer::update_storage_info(std::string& ss)
 
         }//!(pMidasBox->mag_slotarray[1].mag_plug == 0)
     }
+
+    //更新光驱属性
+    CRCLog_Info("update recorder ...");
+    for (int i =0; i< pMidasBox->midas_attr.rec_max;i++)
+    {
+        if (pMidasBox->recorde_slotArray[i].recorder_plug)
+        {
+            m_storage.record_attr[i].is_pluging     = 1;
+            m_storage.record_attr[i].record_address = 0x5001+i;
+            m_storage.record_attr[i].is_have_media  = pMidasBox->recorde_slotArray[i].recorder.blue_cd.cd_presence_flag;
+            m_storage.record_attr[i].media_address  = pMidasBox->recorde_slotArray[i].recorder.cd_src_address;
+            m_storage.record_attr[i].is_busy        = pMidasBox->recorde_slotArray[i].recorder_busy;
+            //记录更新时间
+            time(&(m_storage.record_attr[i].times)); 
+        }else{
+            m_storage.record_attr[i].is_pluging     = 0;
+            m_storage.record_attr[i].record_address = 0x5001+i;
+        }
+        
+    }
+
 }

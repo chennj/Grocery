@@ -5,6 +5,7 @@
 #include "crc_easy_txt_client.h"
 #include "crc_thread.h"
 #include "svr_machine_midasbox.h"
+#include "svr_machine_recorder.h"
 #include <queue>
 #include <mutex>
 
@@ -27,7 +28,7 @@ class MachineServer
 {
 public:
     //state
-    enum MachineState{
+    enum MachineState : int32_t{
         EXCEPTION =-1,
         INIT = 0,           //初始
         RUN,                //正常
@@ -95,6 +96,8 @@ public:
         long long	        storage_used;
         /* scsi host */
         char		        scsi_host[12];
+        /* 光驱属性，从at91获得 */
+        RecordAttr          record_attr[RECORDERMAX];
         /* midasbox 属性,从at91得到  */
         MidasMagSlot        mag_slotarray[MAGSLOTMAX];
         /* 光盘属性，通过盘点获得，与从at91得到的属性一一对应 */
@@ -140,7 +143,7 @@ public:
     virtual bool ParseCmd(const CRCJson & json, std::string & cmd) const;
 
     //处理从at91返回的消息
-    virtual void OnProcess4Equipment(std::string& str4Eqpt);
+    virtual void OnProcess4Equipment(std::string& str4Eqpt, CRCClientCTxt* pTxtClient);
 
     void MachineLoop(CRCThread* pThread);
 
@@ -155,7 +158,7 @@ private:
 
     //跟新 storage
     //信息来自 at91 的 MidasBox
-    void update_storage_info(std::string& ss);
+    void update_storage_info(std::string& ss, CRCClientCTxt* pTxtClient);
 };
 
 #endif

@@ -96,6 +96,13 @@ CRCEasyTxtClient::auth()
     }
 }
 
+bool
+CRCEasyTxtClient::isAuth()
+{
+    CRCClientCTxt * pTxtClient = dynamic_cast<CRCClientCTxt*>(_pClient);
+    return pTxtClient->_isAuthed;
+}
+
 bool 
 CRCEasyTxtClient::connect(int af, const char* ip, unsigned short port)
 {

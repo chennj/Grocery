@@ -19,7 +19,7 @@ public:
     // 0 消息不完整 继续等待消息
     // -1 不支持的消息类型
     // -2 异常消息
-    int checkTxtResponse();
+    int  checkTxtResponse();
 
     //确定收到完整消息的时候才能调用
     bool getResponseInfo();
@@ -27,6 +27,12 @@ public:
     //设置已经获得认证
     //用于判断收到的消息是在认证前，还是在认证后
     void setAuth(bool b);
+
+    //获取接收到的原始数据
+    char * getRecvData();
+
+    //获取接收到的数据长度
+    int  getRecvLen();
 
     //是否认证
     inline bool getAuth(){return _isAuthed;}

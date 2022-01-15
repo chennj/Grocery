@@ -30,6 +30,10 @@ CRCClientCTxt::checkTxtResponse()
     //消息实际上并没有传完
     char*   temp    = _recvBuff.data()+_recvBuff.dataLen()-1;
     bool    found   = false;
+    if (*temp == '\n'){
+        found = true;
+    }
+    /*
     int     count   = 0;
     for (int i = _recvBuff.dataLen(); i >= 1; i--)	
     {
@@ -43,12 +47,15 @@ CRCClientCTxt::checkTxtResponse()
     }
 
     CRCLog_Info("CRCClientCTxt::checkTxtResponse() cycle count <%d>", count);
+    */
 
     //未找到表示消息还不完整
     if (!found){
-        CRCLog_Warring("CRCClientCTxt::checkTxtResponse() message is incomplete, recv data len <%d>", _recvBuff.dataLen());
+        CRCLog_Warring("CRCClientCTxt::checkTxtResponse() MESSAGE is INcomplete, recv data len <%d>", _recvBuff.dataLen());
         return 0;
     }
+
+    CRCLog_Info("CRCClientCTxt::checkTxtResponse MESSAGE is complete, recv data len <%d>", _recvBuff.dataLen());
 
     //偏移到消息结束位置
     //1=strlen("\n")
@@ -94,6 +101,18 @@ CRCClientCTxt::getResponseInfo()
     }
 
     return true;
+}
+
+char* 
+CRCClientCTxt::getRecvData()
+{
+    return _recvBuff.data();
+}
+
+int
+CRCClientCTxt::getRecvLen()
+{
+    return _recvBuff.dataLen();
 }
 
 void 
