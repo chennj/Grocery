@@ -1,6 +1,11 @@
 SRC 		= ../../../depends/src
 DEPEND		= ../../../depends
-INCLUDE 	= -I ../../include -I ../../../depends/include/net -I ../../../depends/thrd-json -I ../../../depends/thrd-sha
+INCLUDE 	= \
+			-I ../../include \
+			-I ../../../depends/include/net \
+			-I ../../../depends/thrd-json \
+			-I ../../../depends/thrd-sha \
+			-I ../../../depends/threadpoll
 
 CXX			= g++
 LIBS		= -lpthread
@@ -10,6 +15,7 @@ SERVER		= loginserver
 SERVERSRC 	= \
 			svr_login_main.cpp svr_login.cpp \
 			$(SRC)/net/*.cpp \
+			$(DEPEND)/threadpool/crc_thread_pool.cpp \
 			$(DEPEND)/thrd-json/CJsonObject.cpp \
 			$(DEPEND)/thrd-json/cJSON.c \
 			$(DEPEND)/thrd-sha/sha1.cpp

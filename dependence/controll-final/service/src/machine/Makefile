@@ -8,7 +8,8 @@ INCLUDE 	= \
 			-I ../../../depends/include/net \
 			-I ../../../depends/thrd-json \
 			-I ../../../depends/thrd-sha \
-			-I ../../../dvdrw-medinfo/
+			-I ../../../dvdrw-medinfo/ \
+			-I ../../../depends/threadpoll
 
 STATIC		= 
 CXX			= g++
@@ -19,6 +20,7 @@ SERVER		= machineserver
 SERVERSRC 	= \
 			svr_machine_main.cpp svr_machine.cpp \
 			$(SRC)/net/*.cpp \
+			$(DEPEND)/threadpool/crc_thread_pool.cpp \
 			$(DEPEND)/thrd-json/CJsonObject.cpp \
 			$(DEPEND)/thrd-json/cJSON.c \
 			$(DEPEND)/thrd-sha/sha1.cpp

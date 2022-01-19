@@ -7,11 +7,6 @@ MachineServer::~MachineServer()
         delete _task_queue.front();
         _task_queue.pop();
     }
-
-    while(!_local_task_queue.empty()){
-        delete _local_task_queue.front();
-        _local_task_queue.pop();
-    }
 }
 
 void 
@@ -20,8 +15,12 @@ MachineServer::Init()
     //第一次启动，设为盘点状态
     m_current_state = INIT;
     
+    //初始化线程池并启动
+    m_thread_pool.init(4);
+    m_thread_pool.start();
+
     //启动时获取设备信息的任务加入本地队列，确保是第一个执行的任务
-    AddLocalTask(UPDATEMIDASBOX);
+    do_action(UPDATEMIDASBOX);
 
     //连接总控,注册服务
     _csCtrl.set_groupid("0001");
@@ -30,9 +29,7 @@ MachineServer::Init()
 
     _csCtrl.reg_msg_call("onopen", std::bind(&MachineServer::onopen_csCtrl, this, std::placeholders::_1, std::placeholders::_2));
 
-    _csCtrl.reg_msg_call(CMD_MAILBOX, std::bind(&MachineServer::cs_machine_mailbox, this, std::placeholders::_1, std::placeholders::_2));
-
-    _csCtrl.reg_msg_call(CMD_QUERY, std::bind(&MachineServer::cs_machine_query, this, std::placeholders::_1, std::placeholders::_2));
+    _csCtrl.reg_msg_call(CMD_ACTION, std::bind(&MachineServer::cs_machine_action, this, std::placeholders::_1, std::placeholders::_2));
 
     //设置处理来自设备的信息的回调处理函数
     _csMachine.onmessage = [this](CRCClientCTxt* pTxtClient){
@@ -64,8 +61,8 @@ MachineServer::Init()
 
         if (!isException && strstr(ss.c_str(), DOORCLOSE)){
             CRCLog_Warring("DOORCLOSE......");
-            AddLocalTask(UPDATEMIDASBOX);
             m_current_state = INVENTORY;
+            do_action(UPDATEMIDASBOX);
         }
 
         if (isException){
@@ -127,69 +124,9 @@ MachineServer::MachineLoop(CRCThread* pThread)
             if (m_current_state == EXCEPTION){          //异常状态，全部暂停
                 CRCThread::Sleep(1);
                 continue;
-            }
+            }            
 
-            if (m_current_state == INIT){               //初始化状态，等待认证结束
-               if (_csMachine.isAuth()){
-                    m_current_state = RUN;
-               }
-               continue;
-            }
-            
-            if (m_current_state == INVENTORY){          //盘点状态，返回所有总控任务，只执行本地盘点任务
-                //返回总控所有的任务
-                while(!_task_queue.empty())
-                {
-                    CRCJson * pjson = nullptr;
-                    {
-                        std::lock_guard<std::mutex> lock(_task_queue_mtx);
-                        pjson = _task_queue.front();
-                        _task_queue.pop();
-                    }
-                    CRCJson ret;
-                    ret.Add("data", "INVENTORY");
-                    _csCtrl.response(*pjson, ret);    
-                    delete pjson;
-                }
-            }
-            //-----------------------------------------------
-
-            //如果有本地任务，优先执行
-            //-----------------------------------------------
-            //先判断是否有已经发出的总控任务还没有返回
-            if (!_task_queue.empty())
-            {
-                CRCJson* pmsg = _task_queue.front();
-                if ((*pmsg)("status").compare("sent") == 0){
-                    CRCThread::Sleep(1);
-                    continue;
-                }
-            }
-            //发送本地任务
-            if (!_local_task_queue.empty())
-            {
-                CRCJson*    pmsg    = _local_task_queue.front();
-                std::string cmd     = (*pmsg)("cmd");
-
-                //任务已发送还未返回
-                if ((*pmsg)("status").compare("sent") == 0){
-                    CRCThread::Sleep(1);
-                    continue;
-                }
-
-                if (SOCKET_ERROR == _csMachine.writeText(cmd.c_str(), cmd.length())){
-                    CRCLog_Error("MachineLoop::connect local task send failed");
-                    CRCThread::Sleep(1000);
-                } else {
-                    //修改发送任务为已发送
-                    pmsg->Replace("status", "sent");
-                }
-
-                continue;
-            }
-            //-----------------------------------------------
-
-            //发送总控发送过来的任务
+            //发送的任务
             //-----------------------------------------------
             if (!_task_queue.empty())
             {
@@ -255,10 +192,7 @@ MachineServer::onopen_csCtrl(CRCNetClientC* client, CRCJson& msg)
     json.Add("name",    "MachineServer");
     json.Add("sskey",   "ssmm00@123456");
     json.AddEmptySubArray("apis");
-    json["apis"].Add("cs_machine_cdrom");
-    json["apis"].Add("cs_machine_mailbox");
-    json["apis"].Add("cs_machine_printer");
-    json["apis"].Add("cs_machine_query");
+    json["apis"].Add("cs_machine_action");
 
     client->request("ss_reg_api", json, [](CRCNetClientC* client, CRCJson& msg) {
         CRCLog_Info("MachineServer::ss_reg_api return: %s", msg("data").c_str());
@@ -266,7 +200,7 @@ MachineServer::onopen_csCtrl(CRCNetClientC* client, CRCJson& msg)
 }
 
 void 
-MachineServer::cs_machine_mailbox(CRCNetClientC* client, CRCJson& msg)
+MachineServer::cs_machine_action(CRCNetClientC* client, CRCJson& msg)
 {
     CRCLog_Info("MachineServer::cs_machine_mailbox msg: %s", msg.ToString().c_str());
 
@@ -284,29 +218,14 @@ MachineServer::cs_machine_mailbox(CRCNetClientC* client, CRCJson& msg)
         return;
     }
 
-    msg.Add("status", "ready");
-
-    CRCJson * pmsg = new CRCJson(msg);
-
-    std::unique_lock<std::mutex> lock(_task_queue_mtx);
-    _task_queue.push(pmsg);
-}
-
-void 
-MachineServer::cs_machine_query(CRCNetClientC* client, CRCJson& msg)
-{
-    CRCLog_Info("MachineServer::cs_machine_query msg: %s", msg.ToString().c_str());
-
-    CRCJson ret;
-    if (!_thread.isRun())
-    {
-        ret.Add("data", "equiptment client is offline");
+    if (m_current_state == INIT){               //初始化状态，等待认证结束，并进入初始化流程
+        ret.Add("data", "INIT");
         client->response(msg, ret);
         return;
     }
 
-    if (!_csMachine.isRun()){
-        ret.Add("data", "equiptment server is offline");
+    if (m_current_state == INVENTORY){          //盘点状态，返回所有总控任务，进入盘点流程
+        ret.Add("data", "INVENTORY");
         client->response(msg, ret);
         return;
     }
@@ -324,32 +243,14 @@ MachineServer::ParseCmd(const CRCJson & json, std::string & cmd) const
 {
     std::string&& command = json("cmd");
 
-    if (command.compare(CMD_MAILBOX) == 0)
-    {
-        std::string && cmdsub = json("cmdsub");
-        if (cmdsub.compare("out")==0){
-            cmd = "MLOU,0x6001,\n";
-            return true;
-        }
-        if (cmdsub.compare("in")==0){
-            cmd = "MLIN,0x6001,\n";
-            return true;
-        }
+    std::string && cmdsub = json("cmdsub");
+    if (cmdsub.compare("out")==0){
+        cmd = "MLOU,0x6001,\n";
+        return true;
     }
-
-    if (command.compare(CMD_CDROM))
-    {
-
-    }
-
-    if (command.compare(CMD_PRINTER))
-    {
-        
-    }
-
-    if (command.compare(CMD_QUERY))
-    {
-        
+    if (cmdsub.compare("in")==0){
+        cmd = "MLIN,0x6001,\n";
+        return true;
     }
 
     return false;
@@ -357,17 +258,13 @@ MachineServer::ParseCmd(const CRCJson & json, std::string & cmd) const
 }
 
 void 
-MachineServer::AddLocalTask(LocalTaskType localTaskType)
+MachineServer::do_action(LocalTaskType localTaskType)
 {
     switch(localTaskType)
     {
         case UPDATEMIDASBOX:
         {
-            CRCJson * pMsg = new CRCJson();
-            pMsg->Add("cmd",GMAP);
-            pMsg->Add("status", "ready");
-            std::unique_lock<std::mutex> lock(_local_task_queue_mtx);
-            _local_task_queue.push(pMsg);
+            m_thread_pool.exec(std::bind(&MachineServer::update_storage_info, this));
             break;
         }
         default:break;
@@ -378,22 +275,6 @@ void
 MachineServer::OnProcess4Equipment(std::string& str4Eqpt, CRCClientCTxt* pTxtClient)
 {
     CRCJson* pmsg  = nullptr;
-    
-    //先处理本地任务
-    if (!_local_task_queue.empty())
-    {
-        //判断返回的是否本地发送的任务
-        pmsg  = _local_task_queue.front();
-        if ((*pmsg)("status").compare("sent") == 0){
-            CRCLog_Info("update eqpt info...");
-            {
-                std::unique_lock<std::mutex> lock(_local_task_queue_mtx);
-                _local_task_queue.pop();
-            }
-            update_storage_info(str4Eqpt, pTxtClient);
-            return;
-        }
-    }
 
     //处理总控发过来的请求
     if (!_task_queue.empty())
@@ -411,19 +292,47 @@ MachineServer::OnProcess4Equipment(std::string& str4Eqpt, CRCClientCTxt* pTxtCli
 }
 
 void
-MachineServer::update_storage_info(std::string& ss, CRCClientCTxt* pTxtClient)
+MachineServer::update_storage_info()
 {
     //来之at91的 MidasBox
     //记录着所有设备信息
     MidasBox*   pMidasBox   = nullptr;
-    int         datalen     = pTxtClient->getRecvLen();
+    int         datalen     = 0;
+    char        cmdBuf[64];
+    FILE*       file        = NULL;
+    std::string key;
+    std::string content;
+
+    CRCJson * pMsg  = new CRCJson();
+    uint32_t  msgId = m_atomic++;
+
+    pMsg->Add("cmd",GMAP);
+    pMsg->Add("msgId",msgId);
+    pMsg->Add("status", "ready");
+
+    key.append((*pMsg)("msgId"));
+    CRCLog_Info("update_storeage_info key = %s",key.c_str());
+
+    {
+        std::unique_lock<std::mutex> lock(_task_queue_mtx);
+        _task_queue.push(pMsg);
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    //等待结果返回
+    while(true)
+    {
+        CRCJson & jret = m_result_map[key];
+        content = jret("content");
+    }
 
     //通过长度判断返回的是否 MidasBox
     if (datalen != (sizeof(MidasBox)+7)){
-        CRCLog_Error("update_eqpt_info recv\n<%s>\n isn't midasbox",ss.c_str());
+        CRCLog_Error("update_eqpt_info recv\n<%s>\n isn't midasbox",content.c_str());
         return;
     }
-    pMidasBox = (MidasBox*)(ss.c_str()+6);
+    pMidasBox = (MidasBox*)(content.c_str()+6);
     if (!pMidasBox){
         CRCLog_Error("update_eqpt_info convert midasbox failed");
         return;
@@ -516,8 +425,101 @@ MachineServer::update_storage_info(std::string& ss, CRCClientCTxt* pTxtClient)
         }else{
             m_storage.record_attr[i].is_pluging     = 0;
             m_storage.record_attr[i].record_address = 0x5001+i;
-        }
-        
+        }        
     }
+
+	//查找光驱对应的设备名 host为空表示是SATA接口 否则HOST表示PCI 的HBA卡位置
+	if (strlen(m_storage.scsi_host) > 0)
+	{
+		sprintf(cmdBuf,"find /sys/devices/ -name \"sr[0-9]*\" |grep %s >/tmp/record.txt",m_storage.scsi_host);
+	}else{
+		sprintf(cmdBuf,"find /sys/devices/ -name \"sr[0-9]*\"  >/tmp/record.txt");
+	}
+	SVRUTILS::SystemExec(cmdBuf);
+	file = fopen("/tmp/record.txt","r");
+	if (file !=NULL)
+	{
+		char read_buff[256];
+		while(!feof(file))
+        {
+			if (fgets(read_buff,sizeof(read_buff),file)){
+				char *tmp   = NULL;
+				char *tmp2  = NULL;
+				CRCLog_Info("####read_buf :%s\n",read_buff);
+				tmp =  strstr(read_buff,"sr");
+				if (tmp){
+					tmp2 = strchr(tmp,'\n');
+					if (tmp2)
+					{
+						*tmp2 = 0;
+					}
+					//顺序查找光驱
+					for (int i = 0;i<RECORDERMAX;i++)
+					{
+                        if (strlen(m_storage.record_attr[i].dev_name)==0)
+                        {
+                            sprintf(m_storage.record_attr[i].dev_name,"/dev/%s",tmp);
+                            break;
+                        }
+					}
+					
+				}				
+
+			}
+		}//!while(!feof(file))
+		pclose(file);
+	}else{
+		CRCLog_Warring("Cann't  execute popen cmd!\n");
+	}//!if (file !=NULL)
+
+    //检查光驱
+	for (int i =0; i<RECORDERMAX; i++)
+	{
+		if (m_storage.record_attr[i].is_pluging)
+		{
+			CRCLog_Info("%d record,address 0x%04x,devname:%s\n",i,m_storage.record_attr[i].record_address,m_storage.record_attr[i].dev_name);
+			if (strlen(m_storage.record_attr[i].dev_name) <= 0)
+			{
+				CRCLog_Error("FOUND CRITIC ERROR!,can't find any cdrom devname,check config.xml sas hba host is correct! \n");
+                CRCLog_Error("Machine Server Stop...\n\n");	
+				exit(-1);
+			}
+		}
+		
+	}
+}
+
+void
+MachineServer::inventory_all()
+{
+    if (!_isAutoInventory){
+        CRCLog_Info("inventory return, becase auto inventory is false");
+        return;
+    }
+	for (int i=0; i<MAGSLOTMAX; i++)
+	{
+		if (m_storage.mag_slotarray[i].mag_plug == 1)
+		{
+			for (int j=1;j<=MAGITEMMAX;j++){
+				if ((m_storage.media_attr[i*MAGITEMMAX+j].cdexist == PRESENCE) &&
+					(m_storage.media_attr[i*MAGITEMMAX+j].ischecked !=1) &&
+					(m_storage.media_attr[i*MAGITEMMAX+j].slot_status == 'N'))
+				{
+					EsPollEvent eve;
+					eve.EsType = GETDISKINFO;
+					eve.parm.get_disk_info.cdaddr = i*50+j+1; 	//光盘地址
+					eve.callback = GetDiskInfo;					//回调函数
+					EpollPostEvent(&eve);	//送入事件队列
+				}
+				
+			}
+		}			
+	}
+
+}
+
+void
+MachineServer::inventory_one(uint32_t cd_addr)
+{
 
 }

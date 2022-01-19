@@ -6,13 +6,14 @@
 #include "crc_thread.h"
 #include "svr_machine_midasbox.h"
 #include "svr_machine_recorder.h"
-#include <queue>
-#include <mutex>
+#include "crc_thread_pool.h"
 
-#define CMD_MAILBOX         "cs_machine_mailbox"
-#define CMD_CDROM           "cs_machine_cdrom"
-#define CMD_PRINTER         "cs_machine_printer"
-#define CMD_QUERY           "cs_machine_query"
+#include <queue>
+#include <map>
+#include <mutex>
+#include <atomic>
+
+#define CMD_ACTION          "cs_machine_action"
 
 //设备（at91）推送过来的异常消息
 #define DOOROPENREQUEST	    "DOOROPENREQUEST"
@@ -116,17 +117,20 @@ private:
     CRCThread               _thread;
     //任务缓冲队列
     std::queue<CRCJson*>    _task_queue;
-    //总控任务缓冲队列锁
+    //任务缓冲队列锁
     std::mutex              _task_queue_mtx;
-    //本地任务队列
-    //优先级高于客户端发过来的任务队列即（_task_queue）
-    //一般用于获取at91或以后的stm32的设备信息，在第一次连接、断线重连、异常发生
-    //（如，开门等）
-    std::queue<CRCJson*>    _local_task_queue;
-    //本地任务缓冲队列锁
-    std::mutex              _local_task_queue_mtx;
     //是否需要重新获取 MidasBox
     bool                    _isNeedGetMidasBox = true;
+    //是否自动盘点
+    bool                    _isAutoInventory = true;
+    //任务返回结果集
+    std::map<std::string, CRCJson> m_result_map;
+    //线程池
+    CRCThreadPool           m_thread_pool;
+    //记录client
+    CRCClientCTxt*          m_ptr_client_txt = nullptr;
+    //消息id
+    std::atomic<int>		m_atomic{ 0 };
 public:
     virtual ~MachineServer();
 
@@ -136,8 +140,6 @@ public:
     void Run();
 
     void Close();
-
-    void AddLocalTask(LocalTaskType localTaskType);
 
     //分析客户端的命令是否合法
     virtual bool ParseCmd(const CRCJson & json, std::string & cmd) const;
@@ -152,13 +154,17 @@ public:
 private:
     void onopen_csCtrl(CRCNetClientC* client, CRCJson& msg);
 
-    void cs_machine_mailbox(CRCNetClientC* client, CRCJson& msg);
-
-    void cs_machine_query(CRCNetClientC* client, CRCJson& msg);
+    void cs_machine_action(CRCNetClientC* client, CRCJson& msg);
 
     //跟新 storage
     //信息来自 at91 的 MidasBox
-    void update_storage_info(std::string& ss, CRCClientCTxt* pTxtClient);
+    void update_storage_info();
+    //盘点所有
+    void inventory_all();
+    //盘点一个
+    void inventory_one(uint32_t cd_addr);
+    //
+    void do_action(LocalTaskType localTaskType);
 };
 
 #endif

@@ -51,7 +51,8 @@
         "random": "cpp",
         "string": "cpp",
         "cstring": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "future": "cpp"
     },
     "editor.minimap.enabled": false,
     "clang.cxxflags": [
