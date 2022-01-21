@@ -19,9 +19,6 @@ MachineServer::Init()
     m_thread_pool.init(4);
     m_thread_pool.start();
 
-    //启动时获取设备信息的任务加入本地队列，确保是第一个执行的任务
-    do_action(UPDATEMIDASBOX);
-
     //连接总控,注册服务
     _csCtrl.set_groupid("0001");
 
@@ -30,6 +27,9 @@ MachineServer::Init()
     _csCtrl.reg_msg_call("onopen", std::bind(&MachineServer::onopen_csCtrl, this, std::placeholders::_1, std::placeholders::_2));
 
     _csCtrl.reg_msg_call(CMD_ACTION, std::bind(&MachineServer::cs_machine_action, this, std::placeholders::_1, std::placeholders::_2));
+
+    //启动时获取设备信息的任务加入本地队列，确保是第一个执行的任务
+    do_action(UPDATEMIDASBOX);
 
     //设置处理来自设备的信息的回调处理函数
     _csMachine.onmessage = [this](CRCClientCTxt* pTxtClient){
@@ -117,7 +117,12 @@ MachineServer::MachineLoop(CRCThread* pThread)
         if (_csMachine.isRun())
         {
             //完成一次收发
+            //-----------------------------------------------
             _csMachine.OnRun();
+
+            if (!_csMachine.isAuth()){
+                continue;
+            }
 
             //检查当前状态
             //-----------------------------------------------
@@ -169,10 +174,12 @@ MachineServer::MachineLoop(CRCThread* pThread)
                 CRCThread::Sleep(5);
             }
             //-----------------------------------------------
+
             continue;           
         }
 
         //重连设备服务器
+        //-----------------------------------------------
         if (_csMachine.connect(AF_INET,"111.111.1.100", 2020))
         {
             CRCLog_Info("MachineLoop::connect machine success.");
@@ -253,7 +260,9 @@ MachineServer::ParseCmd(const CRCJson & json, std::string & cmd) const
         return true;
     }
 
-    return false;
+    cmd = json("cmd");
+
+    return true;
 
 }
 
@@ -274,21 +283,36 @@ MachineServer::do_action(LocalTaskType localTaskType)
 void 
 MachineServer::OnProcess4Equipment(std::string& str4Eqpt, CRCClientCTxt* pTxtClient)
 {
-    CRCJson* pmsg  = nullptr;
+    CRCJson* pMsg  = nullptr;
 
     //处理总控发过来的请求
-    if (!_task_queue.empty())
-    {
-        std::lock_guard<std::mutex> lock(_task_queue_mtx);
-        pmsg = _task_queue.front();
-        _task_queue.pop();
+    if (!_task_queue.empty()){
+
+        {
+            std::lock_guard<std::mutex> lock(_task_queue_mtx);
+            pMsg = _task_queue.front();
+            _task_queue.pop();
+        }
+
+        RetMessage* rm = new RetMessage(*pMsg, str4Eqpt.c_str(), pTxtClient->getRecvLen());
+
+        std::string key;
+        key.append((*pMsg)("groupId")).append(":").append((*pMsg)("msgId"));
+
+        {
+            std::unique_lock<std::mutex> lock(m_result_map_mtx);
+            m_result_map.insert(std::map<std::string, RetMessage*>::value_type(key, rm)); 
+        }
+        delete pMsg;
+        CRCLog_Info ("OnProcess4Equipment: recv %s; recvlen %d; key %s",str4Eqpt.c_str(), strlen(str4Eqpt.c_str()), key.c_str());
+
+    } else {
+
+        CRCLog_Error("OnProcess4Equipment: recv %s; \nEXCEPTION: %s",str4Eqpt.c_str(), "No corresponding request found");
+        //CRCJson ret;
+        //ret.Add("data", str4Eqpt);
+        //_csCtrl.response(*pmsg, ret);    
     }
-
-    CRCLog_Info("_csMachine.onmessage: recv %s; msg %s",str4Eqpt.c_str(), pmsg->ToString().c_str());
-
-    CRCJson ret;
-    ret.Add("data", str4Eqpt);
-    _csCtrl.response(*pmsg, ret);    
 }
 
 void
@@ -301,18 +325,22 @@ MachineServer::update_storage_info()
     char        cmdBuf[64];
     FILE*       file        = NULL;
     std::string key;
-    std::string content;
+    std::string groupId     = "local_update_storage_info";
+    RetMessage* rm;
 
-    CRCJson * pMsg  = new CRCJson();
-    uint32_t  msgId = m_atomic++;
+    CRCJson *   pMsg  = new CRCJson();
+    uint32_t    msgId = m_atomic++;
 
-    pMsg->Add("cmd",GMAP);
-    pMsg->Add("msgId",msgId);
+    //生成任务对象
+    pMsg->Add("cmd",    GMAP);
+    pMsg->Add("groupId",groupId);
+    pMsg->Add("msgId",  msgId);
     pMsg->Add("status", "ready");
 
-    key.append((*pMsg)("msgId"));
-    CRCLog_Info("update_storeage_info key = %s",key.c_str());
+    //这个key值用来在结果集中查找返回结果
+    key.append((*pMsg)("groupId")).append(":").append((*pMsg)("msgId"));
 
+    //将任务放入发送任务队列
     {
         std::unique_lock<std::mutex> lock(_task_queue_mtx);
         _task_queue.push(pMsg);
@@ -321,18 +349,35 @@ MachineServer::update_storage_info()
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
     //等待结果返回
+    CRCLog_Info("update_storeage_info WAITTING msg<%s> return ...", key.c_str());
     while(true)
     {
-        CRCJson & jret = m_result_map[key];
-        content = jret("content");
+        std::map<std::string, RetMessage*>::iterator iter;
+        iter = m_result_map.find(key);
+        if (iter != m_result_map.end()){
+            {
+                std::unique_lock<std::mutex> lock(m_result_map_mtx);
+                rm = iter->second;
+                m_result_map.erase(iter);
+            }
+            break;
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            CRCLog_Info("update_storeage_info find key %s", key.c_str());
+            continue;
+        }
     }
 
+    //datalen                 = rm.datalen;        //返回信息长度
+    //std::string && content  = jret("data");                         //返回信息内容
+
     //通过长度判断返回的是否 MidasBox
-    if (datalen != (sizeof(MidasBox)+7)){
-        CRCLog_Error("update_eqpt_info recv\n<%s>\n isn't midasbox",content.c_str());
+    if (rm->datalen != (sizeof(MidasBox)+7)){
+        CRCLog_Error("update_eqpt_info recv\n<%s>\n isn't midasbox",rm->data);
         return;
     }
-    pMidasBox = (MidasBox*)(content.c_str()+6);
+
+    pMidasBox = (MidasBox*)( rm->data+6);
     if (!pMidasBox){
         CRCLog_Error("update_eqpt_info convert midasbox failed");
         return;
@@ -343,6 +388,9 @@ MachineServer::update_storage_info()
         pMidasBox->mag_slotarray,
         sizeof(MidasMagSlot)*MAGSLOTMAX
     );
+
+    delete rm;
+
     //更新盘槽状态 ,用于盘槽状态发生变化 需要重新更新状态
     CRCLog_Info("update mag slot ...");
     for (int i = 0; i < MAGSLOTMAX; i++)
@@ -505,11 +553,13 @@ MachineServer::inventory_all()
 					(m_storage.media_attr[i*MAGITEMMAX+j].ischecked !=1) &&
 					(m_storage.media_attr[i*MAGITEMMAX+j].slot_status == 'N'))
 				{
+                    /*
 					EsPollEvent eve;
 					eve.EsType = GETDISKINFO;
 					eve.parm.get_disk_info.cdaddr = i*50+j+1; 	//光盘地址
 					eve.callback = GetDiskInfo;					//回调函数
 					EpollPostEvent(&eve);	//送入事件队列
+                    */
 				}
 				
 			}

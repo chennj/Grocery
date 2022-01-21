@@ -48,8 +48,7 @@ public:
     };
 
     /* 如果是BD空盘，大小根据media_capacity ,如果是DVD，默认是4G */
-    typedef struct _DiskTypeInfo
-    {
+    typedef struct _DiskTypeInfo {
         int			        media_type;
         char 		        media_type_str[32];          /*检测出来的类型*/
         char                media_id[32];
@@ -87,7 +86,7 @@ public:
         DiskTypeInfo        diskTypeInfo;  
     }                       MediaAttr;
 
-    typedef struct _{
+    typedef struct _Storage{
         int                 try_burn_times;	                    //尝试烧录的最多次数，默认10次
         int			        burn_speed_bd;		                //default 4
         int			        burn_speed_dvd;		                //default 8
@@ -106,6 +105,29 @@ public:
     }                       Storage;
 
     Storage                 m_storage;
+
+    typedef struct _RetMessage{
+        CRCJson             json;
+        char*               data;
+        int                 datalen;
+        _RetMessage(){}
+        _RetMessage(_RetMessage& other){
+            json = other.json;
+            datalen = other.datalen;
+            data = new char[datalen];
+            memcpy(data,other.data,datalen);            
+        }
+        _RetMessage(CRCJson & j, const char* d, int l){
+            json = j;
+            datalen = l;
+            data = new char[datalen];
+            memcpy(data,d,datalen);
+        }
+        ~_RetMessage(){
+            CRCLog_Info("_RetMessage exec...");
+            delete data;
+        }
+    }                       RetMessage;
 private:
     //连接总控服务区的客户端
     //负责服务的注册，空闲心跳，自动重连
@@ -124,7 +146,9 @@ private:
     //是否自动盘点
     bool                    _isAutoInventory = true;
     //任务返回结果集
-    std::map<std::string, CRCJson> m_result_map;
+    std::map<std::string, RetMessage*> m_result_map;
+    //
+    std::mutex              m_result_map_mtx;
     //线程池
     CRCThreadPool           m_thread_pool;
     //记录client

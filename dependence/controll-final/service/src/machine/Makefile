@@ -9,7 +9,7 @@ INCLUDE 	= \
 			-I ../../../depends/thrd-json \
 			-I ../../../depends/thrd-sha \
 			-I ../../../dvdrw-medinfo/ \
-			-I ../../../depends/threadpoll
+			-I ../../../depends/threadpool
 
 STATIC		= 
 CXX			= g++

@@ -1,8 +1,6 @@
 #include "crc_thread_pool.h"
 #include "crc_log.h"
 
-#include <iostream>
-
 int64_t getNowMs()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -134,8 +132,7 @@ void CRCThreadPool::run()
 				if (task->m_expireTime != 0 && task->m_expireTime < TNOWMS)
 				{
 					//超时任务，是否需要处理
-					//std::cout << "has task timeout: " << task << std::endl;
-                    CRCLog_Warring("thread pool has task timeout");
+                    CRCLog_Warring("thread pool has task timeout %d", task);
 				}
 				else
 				{
@@ -144,7 +141,6 @@ void CRCThreadPool::run()
 			}
 			catch (const std::exception& e)
 			{
-				//std::cout << "exception: " << e.what() << std::endl;
                 CRCLog_Warring("thread pool has task exception %s",e.what());
 			}
 
