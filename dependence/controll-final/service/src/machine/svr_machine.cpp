@@ -34,32 +34,32 @@ MachineServer::Init()
     //设置处理来自设备的信息的回调处理函数
     _csMachine.onmessage = [this](CRCClientCTxt* pTxtClient){
 
-        std::string& ss = pTxtClient->getContent();
+        char* ss = pTxtClient->getRecvData();
         
         //先行判断是否是at91推送过来的消息
         //如果有那坑定是发生了异常
         bool isException = false;
-        if (!isException && strstr(ss.c_str(), DOOROPENREQUEST)){
+        if (!isException && strstr(ss, DOOROPENREQUEST)){
             CRCLog_Warring("DOOROPENREQUEST......");
             isException = true;
         }
 
-        if (!isException && strstr(ss.c_str(), MAGPLUGOUT)){
+        if (!isException && strstr(ss, MAGPLUGOUT)){
             CRCLog_Warring("MAGPLUGOUT......");
             isException = true;
         }
 
-        if (!isException && strstr(ss.c_str(), DOOROPEN)){
+        if (!isException && strstr(ss, DOOROPEN)){
             CRCLog_Warring("DOOROPEN......");
             isException = true;
         }
 
-        if (!isException && strstr(ss.c_str(), MAGPLUGIN)){
+        if (!isException && strstr(ss, MAGPLUGIN)){
             CRCLog_Warring("MAGPLUGIN......");
             isException = true;
         }
 
-        if (!isException && strstr(ss.c_str(), DOORCLOSE)){
+        if (!isException && strstr(ss, DOORCLOSE)){
             CRCLog_Warring("DOORCLOSE......");
             m_current_state = INVENTORY;
             do_action(UPDATEMIDASBOX);
@@ -149,18 +149,7 @@ MachineServer::MachineLoop(CRCThread* pThread)
                 }
 
                 //检查命令是否合法
-                std::string cmd;
-                if (!ParseCmd((*pmsg),cmd)){
-                    {
-                        std::lock_guard<std::mutex> lock(_task_queue_mtx);
-                        _task_queue.pop();
-                    }
-                    CRCJson ret;
-                    ret.Add("data", "UNSUPPORTED command");
-                    _csCtrl.response(*pmsg, ret);
-                    delete pmsg;
-                    continue;
-                }
+                std::string&& cmd = (*pmsg)("cmdTransfer");
                 
                 if (SOCKET_ERROR != _csMachine.writeText(cmd.c_str(), cmd.length())){
                     pmsg->Replace("status", "sent");
@@ -209,7 +198,7 @@ MachineServer::onopen_csCtrl(CRCNetClientC* client, CRCJson& msg)
 void 
 MachineServer::cs_machine_action(CRCNetClientC* client, CRCJson& msg)
 {
-    CRCLog_Info("MachineServer::cs_machine_mailbox msg: %s", msg.ToString().c_str());
+    CRCLog_Info("MachineServer::cs_machine_action msg: %s", msg.ToString().c_str());
 
     CRCJson ret;
     if (!_thread.isRun())
@@ -239,41 +228,35 @@ MachineServer::cs_machine_action(CRCNetClientC* client, CRCJson& msg)
 
     msg.Add("status", "ready");
 
-    CRCJson * pmsg = new CRCJson(msg);
-
-    std::unique_lock<std::mutex> lock(_task_queue_mtx);
-    _task_queue.push(pmsg);
-}
-
-bool 
-MachineServer::ParseCmd(const CRCJson & json, std::string & cmd) const
-{
-    std::string&& command = json("cmd");
-
-    std::string && cmdsub = json("cmdsub");
-    if (cmdsub.compare("out")==0){
-        cmd = "MLOU,0x6001,\n";
-        return true;
-    }
-    if (cmdsub.compare("in")==0){
-        cmd = "MLIN,0x6001,\n";
-        return true;
-    }
-
-    cmd = json("cmd");
-
-    return true;
-
+    do_action(NORMAL, &msg);
 }
 
 void 
-MachineServer::do_action(LocalTaskType localTaskType)
+MachineServer::do_action(MachineTaskType taskType, CRCJson * pJson)
 {
-    switch(localTaskType)
+    switch(taskType)
     {
         case UPDATEMIDASBOX:
         {
             m_thread_pool.exec(std::bind(&MachineServer::update_storage_info, this));
+            break;
+        }
+        case NORMAL:
+        {
+            std::string&& command   = (*pJson)("cmdsub");
+            if (command.empty()){
+                CRCJson ret;
+                ret.Add("data", "cmd lost");
+                _csCtrl.response(*pJson, ret);                
+            }
+
+            CRCJson * pMsg          = new CRCJson(*pJson);
+            if (command.compare(MAILBOXIN) == 0){
+                m_thread_pool.exec(std::bind(&MachineServer::mailbox_in, this, std::placeholders::_1), pMsg);
+            }
+            if (command.compare(MAILBOXOUT) == 0){
+                m_thread_pool.exec(std::bind(&MachineServer::mailbox_out, this, std::placeholders::_1), pMsg);
+            }
             break;
         }
         default:break;
@@ -281,11 +264,11 @@ MachineServer::do_action(LocalTaskType localTaskType)
 }
 
 void 
-MachineServer::OnProcess4Equipment(std::string& str4Eqpt, CRCClientCTxt* pTxtClient)
+MachineServer::OnProcess4Equipment(const char* pData, CRCClientCTxt* pTxtClient)
 {
     CRCJson* pMsg  = nullptr;
 
-    //处理总控发过来的请求
+    //处理设备发过来的请求
     if (!_task_queue.empty()){
 
         {
@@ -294,26 +277,29 @@ MachineServer::OnProcess4Equipment(std::string& str4Eqpt, CRCClientCTxt* pTxtCli
             _task_queue.pop();
         }
 
-        RetMessage* rm = new RetMessage(*pMsg, str4Eqpt.c_str(), pTxtClient->getRecvLen());
+        RetMessage* rm = new RetMessage(*pMsg, pData, pTxtClient->getRecvLen());
 
-        std::string key;
-        key.append((*pMsg)("groupId")).append(":").append((*pMsg)("msgId"));
+        std::string&& key = gen_key(*pMsg);
+
+        CRCLog_Info ("OnProcess4Equipment: recv %s; recvlen %d; key %s",pData, strlen(pData), key.c_str());
 
         {
             std::unique_lock<std::mutex> lock(m_result_map_mtx);
             m_result_map.insert(std::map<std::string, RetMessage*>::value_type(key, rm)); 
+            m_condition.notify_all();
         }
+
         delete pMsg;
-        CRCLog_Info ("OnProcess4Equipment: recv %s; recvlen %d; key %s",str4Eqpt.c_str(), strlen(str4Eqpt.c_str()), key.c_str());
 
     } else {
 
-        CRCLog_Error("OnProcess4Equipment: recv %s; \nEXCEPTION: %s",str4Eqpt.c_str(), "No corresponding request found");
+        CRCLog_Error("OnProcess4Equipment: recv %s; \nEXCEPTION: %s",pData, "No corresponding request found");
         //CRCJson ret;
         //ret.Add("data", str4Eqpt);
         //_csCtrl.response(*pmsg, ret);    
     }
 }
+
 
 void
 MachineServer::update_storage_info()
@@ -324,21 +310,20 @@ MachineServer::update_storage_info()
     int         datalen     = 0;
     char        cmdBuf[64];
     FILE*       file        = NULL;
-    std::string key;
-    std::string groupId     = "local_update_storage_info";
-    RetMessage* rm;
+    std::string from        = "local_update_storage_info";
+    RetMessage* rm          = nullptr;
 
-    CRCJson *   pMsg  = new CRCJson();
-    uint32_t    msgId = m_atomic++;
+    CRCJson *   pMsg        = new CRCJson();
+    uint32_t    fromId      = m_atomic++;
 
     //生成任务对象
-    pMsg->Add("cmd",    GMAP);
-    pMsg->Add("groupId",groupId);
-    pMsg->Add("msgId",  msgId);
-    pMsg->Add("status", "ready");
+    pMsg->Add("cmdTransfer",    GMAP);
+    pMsg->Add("from",           from);
+    pMsg->Add("fromId",         fromId);
+    pMsg->Add("status",         "ready");
 
     //这个key值用来在结果集中查找返回结果
-    key.append((*pMsg)("groupId")).append(":").append((*pMsg)("msgId"));
+    std::string&& key = gen_key(*pMsg);
 
     //将任务放入发送任务队列
     {
@@ -346,10 +331,12 @@ MachineServer::update_storage_info()
         _task_queue.push(pMsg);
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
     //等待结果返回
-    CRCLog_Info("update_storeage_info WAITTING msg<%s> return ...", key.c_str());
+    CRCLog_Info("update_storeage_info WAITTING msg key<%s> return ...", key.c_str());
+
+    //不使用轮询，使用用 condition
+    /*
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
     while(true)
     {
         std::map<std::string, RetMessage*>::iterator iter;
@@ -362,14 +349,38 @@ MachineServer::update_storage_info()
             }
             break;
         } else {
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
             CRCLog_Info("update_storeage_info find key %s", key.c_str());
             continue;
         }
     }
+    */
+    /* 放到公共函数里
+    {
+        std::unique_lock<std::mutex> lock(m_result_map_mtx);
+        std::map<std::string, RetMessage*>::iterator iter;
+        bool no_timeout = m_condition.wait_for(lock, std::chrono::milliseconds(1000*10), [&,this]{
 
-    //datalen                 = rm.datalen;        //返回信息长度
-    //std::string && content  = jret("data");                         //返回信息内容
+            if (!this->m_result_map.empty()){
+                iter = this->m_result_map.find(key);
+                return iter != this->m_result_map.end();
+            } else {
+                return false;
+            }
+
+        });
+        if (!no_timeout){
+            CRCLog_Error("update_eqpt_info recv timeout");
+            return;
+        }
+        rm = iter->second;
+        m_result_map.erase(iter);
+    }
+    */
+    if (!wait_for(key, "update_eqpt_info recv timeout", rm))
+    {
+        return;
+    }
 
     //通过长度判断返回的是否 MidasBox
     if (rm->datalen != (sizeof(MidasBox)+7)){
@@ -393,11 +404,11 @@ MachineServer::update_storage_info()
 
     //更新盘槽状态 ,用于盘槽状态发生变化 需要重新更新状态
     CRCLog_Info("update mag slot ...");
-    for (int i = 0; i < MAGSLOTMAX; i++)
+    for (int i = 0; i < 12/*MAGSLOTMAX*/; i++)      //MAGSLOTMAX太大了，现实没有这么多的盘仓，12就足够了
     {
         if (m_storage.mag_slotarray[i].mag_plug == 0)
         {
-            printf("## %d mag is no plug !\n",i);
+            CRCLog_Info("## %d mag is no plug !\n",i);
             for (int j = 0;j < MAGITEMMAX; j++)
             {
                 m_storage.media_attr[i * MAGITEMMAX + j].media_addr = i * MAGITEMMAX + j +1;
@@ -433,7 +444,7 @@ MachineServer::update_storage_info()
 
         } else {
 
-            printf("## %d mag is  plug !,seral:%s\n",i,m_storage.mag_slotarray[i].magazine.serial);
+            CRCLog_Info("## %d mag is  plug !,seral:%s\n",i,m_storage.mag_slotarray[i].magazine.serial);
             for (int j = 0; j < MAGITEMMAX; j++)
             {
                 m_storage.media_attr[i*MAGITEMMAX+j].media_addr = i*MAGITEMMAX+j +1;
@@ -475,6 +486,10 @@ MachineServer::update_storage_info()
             m_storage.record_attr[i].record_address = 0x5001+i;
         }        
     }
+
+    m_current_state = RUN;
+
+    return;
 
 	//查找光驱对应的设备名 host为空表示是SATA接口 否则HOST表示PCI 的HBA卡位置
 	if (strlen(m_storage.scsi_host) > 0)
@@ -572,4 +587,104 @@ void
 MachineServer::inventory_one(uint32_t cd_addr)
 {
 
+}
+
+void 
+MachineServer::mailbox_in(CRCJson * pJson)
+{
+    std::string from        = "remote_mailbox_in";
+    uint32_t    fromId      = m_atomic++;
+    RetMessage* rm          = nullptr;
+
+    //生成任务对象
+    pJson->Add("cmdTransfer",    MAILBOXIN_TRANSFER);
+    pJson->Add("from",           from);
+    pJson->Add("fromId",         fromId);
+    pJson->Add("status",         "ready");
+
+    //这个key值用来在结果集中查找返回结果
+    std::string&& key = gen_key(*pJson);
+
+    //将任务放入发送任务队列
+    {
+        std::unique_lock<std::mutex> lock(_task_queue_mtx);
+        _task_queue.push(pJson);
+    }
+
+    CRCLog_Info("mailbox_in WAITTING msg key<%s> return ...", key.c_str());
+
+    if (!wait_for(key, "mailbox_in recv timeout", rm))
+    {
+        return;
+    }
+
+    CRCJson ret;
+    ret.Add("data", rm->data);
+    _csCtrl.response(rm->json, ret);    
+}
+
+void 
+MachineServer::mailbox_out(CRCJson * pJson)
+{
+    std::string from        = "remote_mailbox_out";
+    uint32_t    fromId      = m_atomic++;
+    RetMessage* rm          = nullptr;
+
+    //生成任务对象
+    pJson->Add("cmdTransfer",    MAILBOXOUT_TRANSFER);
+    pJson->Add("from",           from);
+    pJson->Add("fromId",         fromId);
+    pJson->Add("status",         "ready");
+
+    //这个key值用来在结果集中查找返回结果
+    std::string&& key = gen_key(*pJson);
+
+    //将任务放入发送任务队列
+    {
+        std::unique_lock<std::mutex> lock(_task_queue_mtx);
+        _task_queue.push(pJson);
+    }
+
+    CRCLog_Info("mailbox_in WAITTING msg key<%s> return ...", key.c_str());
+
+    if (!wait_for(key, "mailbox_out recv timeout", rm))
+    {
+        return;
+    }
+
+    CRCJson ret;
+    ret.Add("data", rm->data);
+    _csCtrl.response(rm->json, ret);   
+}
+
+std::string 
+MachineServer::gen_key(const CRCJson & json)
+{
+    std::string key;
+    key.append(json("from")).append(":").append(json("fromId"));
+    return key;
+}
+
+bool 
+MachineServer::wait_for(const std::string& key, const std::string& msg, RetMessage*& pRmOut, uint32_t timeout)
+{
+    std::unique_lock<std::mutex> lock(m_result_map_mtx);
+    std::map<std::string, RetMessage*>::iterator iter;
+    bool no_timeout = m_condition.wait_for(lock, std::chrono::milliseconds(timeout), [&,this]{
+
+        if (!this->m_result_map.empty()){
+            iter = this->m_result_map.find(key);
+            return iter != this->m_result_map.end();
+        } else {
+            return false;
+        }
+
+    });
+    if (!no_timeout){
+        CRCLog_Error(msg.c_str());
+        return false;
+    }
+    pRmOut = iter->second;
+    m_result_map.erase(iter);
+    return true;
 }

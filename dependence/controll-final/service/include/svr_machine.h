@@ -11,19 +11,26 @@
 #include <queue>
 #include <map>
 #include <mutex>
+#include <condition_variable>
 #include <atomic>
 
-#define CMD_ACTION          "cs_machine_action"
+#define CMD_ACTION                  "cs_machine_action"
 
 //设备（at91）推送过来的异常消息
-#define DOOROPENREQUEST	    "DOOROPENREQUEST"
-#define MAGPLUGOUT			"MAGPLUGOUT"
-#define DOOROPEN			"DOOROPEN"
-#define MAGPLUGIN			"MAGPLUGIN"
-#define DOORCLOSE			"DOORCLOSE"
+#define DOOROPENREQUEST	            "DOOROPENREQUEST"
+#define MAGPLUGOUT			        "MAGPLUGOUT"
+#define DOOROPEN			        "DOOROPEN"
+#define MAGPLUGIN			        "MAGPLUGIN"
+#define DOORCLOSE			        "DOORCLOSE"
 
 //命令
-#define GMAP                "GMAP,\n"
+#define GMAP                        "GMAP,\n"
+
+#define MAILBOXIN                   "mailbox in"
+#define MAILBOXOUT                  "mailbox out"
+
+#define MAILBOXIN_TRANSFER          "MLIN,0x6001,\n"
+#define MAILBOXOUT_TRANSFER         "MLOU,0x6001,\n"
 
 class MachineServer
 {
@@ -43,8 +50,9 @@ public:
     } FSM;
     //当前状态
     volatile MachineState   m_current_state = INIT;
-    enum LocalTaskType{
-        UPDATEMIDASBOX=1
+    enum MachineTaskType{
+        UPDATEMIDASBOX=1,
+        NORMAL
     };
 
     /* 如果是BD空盘，大小根据media_capacity ,如果是DVD，默认是4G */
@@ -124,7 +132,7 @@ public:
             memcpy(data,d,datalen);
         }
         ~_RetMessage(){
-            CRCLog_Info("_RetMessage exec...");
+            CRCLog_Info("~RetMessage exec...");
             delete data;
         }
     }                       RetMessage;
@@ -155,6 +163,8 @@ private:
     CRCClientCTxt*          m_ptr_client_txt = nullptr;
     //消息id
     std::atomic<int>		m_atomic{ 0 };
+    //条件
+    std::condition_variable m_condition;
 public:
     virtual ~MachineServer();
 
@@ -165,11 +175,8 @@ public:
 
     void Close();
 
-    //分析客户端的命令是否合法
-    virtual bool ParseCmd(const CRCJson & json, std::string & cmd) const;
-
     //处理从at91返回的消息
-    virtual void OnProcess4Equipment(std::string& str4Eqpt, CRCClientCTxt* pTxtClient);
+    virtual void OnProcess4Equipment(const char* pData, CRCClientCTxt* pTxtClient);
 
     void MachineLoop(CRCThread* pThread);
 
@@ -187,8 +194,16 @@ private:
     void inventory_all();
     //盘点一个
     void inventory_one(uint32_t cd_addr);
-    //
-    void do_action(LocalTaskType localTaskType);
+    //任务分发
+    void do_action(MachineTaskType taskType, CRCJson * pJson = nullptr);
+    //邮箱进
+    void mailbox_in(CRCJson * pJson);
+    //邮箱出
+    void mailbox_out(CRCJson * pJson);
+    //生成消息key
+    std::string gen_key(const CRCJson & json);
+    //wait for
+    bool wait_for(const std::string& key, const std::string& msg, RetMessage*& pRmOut, uint32_t timeout = 10000);
 };
 
 #endif
