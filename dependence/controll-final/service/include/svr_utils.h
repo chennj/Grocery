@@ -9,7 +9,9 @@
 
 namespace SVRUTILS
 {
-    #define MAX_SIZE  1024
+    #define MAX_SIZE    1024
+    #define MAXMEDIA    12*50
+
     static char MAINPATH[MAX_SIZE];
     static char LOGPATH[MAX_SIZE];
     static char LOGSUBPATH[MAX_SIZE];
@@ -22,6 +24,8 @@ namespace SVRUTILS
     static char XMLPATH[MAX_SIZE];
     static char DELAYPATH[MAX_SIZE];
     static char FTPPATH[MAX_SIZE];
+
+    static unsigned char DISC_CHECK_BAD_TIMES[MAXMEDIA] = {0};
 
     static int SystemExec( char* szCmd)
     {

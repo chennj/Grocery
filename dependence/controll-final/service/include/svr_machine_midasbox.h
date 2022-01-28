@@ -19,11 +19,38 @@
 #define UPGRADE					0x06
 #define SHUTDOWN				0x0A
 
+#define  GENBERR	  			-1
+#define  XNETDOWN	  			-3
+#define  NOBLANKDISC  			-2
+#define  XORISOERR    			-4
+#define  NODISC		  			-5
+#define  NOINFO		  			-6
+#define  DUPDIRERR	  			-7					//盘点失败
+#define  BAD_MEDIA    			-8
+
 
 /* 存在标志 presence_flag 类型 */
 #define  PRESENCE   			1					//存在
 #define  NOPRESENCE 			2					//不存在
 #define  UNKNOWN    			0					//未知
+
+#define MIDAS_ELMADR_LIB		0x0000				//盘库自身
+#define MIDAS_ELMADR_ST			0x0001				//第一张光盘
+#define MIDAS_ELMADR_MT			0x4001				//盘库机械手
+#define MIDAS_ELMADR_DT			0x5001				//第一个驱动器	
+#define MIDAS_ELMADR_IE			0x6001				//邮箱首地址
+#define MIDAS_ELMADR_PR			0x7001				//打印机
+#define MIDAS_ELMADR_MAG		0x8001				//直接指定盘仓号，则对应了盘仓电子标签
+#define MIDAS_ELMADR_ALL		0x9001
+
+#define MIDAS_ELEM_DOOR 		0xFFFF  			//最下面,对应机械手开门，打包模式
+#define MIDAS_ELEM_PANEL 		0xFFFE  			//对应机械手panel open模式
+
+#define CDS_NO_INFO             0       			// if not implemented 
+#define CDS_NO_DISC             1
+#define CDS_TRAY_OPEN           2
+#define CDS_DRIVE_NOT_READY     3
+#define CDS_DISC_OK             4
 
 /* LED3 POWER	LED2 PAPER	LED1 INK	LPC 2378
 OFF	闪烁	闪烁	0x0C 字车错误

@@ -13,6 +13,7 @@ CRCClientCTxt::hasMsg()
         return false;
     }
 
+    //检查返回的消息
     int ret = checkTxtResponse();
     if (ret < 0)
         CRCLog_Info("CRCClientCTxt: checkTxtResponse error msg.");
@@ -26,13 +27,9 @@ CRCClientCTxt::checkTxtResponse()
 
     //查找TXT消息结束标记
     //char* temp = strstr(_recvBuff.data(), "\n");
-    //由于at91网络接口写的太烂，从前往后搜索可能中途碰到 ‘\n'
-    //消息实际上并没有传完
-    char*   temp    = _recvBuff.data()+_recvBuff.dataLen()-1;
-    bool    found   = false;
-    if (*temp == '\n'){
-        found = true;
-    }
+    //由于at91网络接口写的太烂，从前往后搜索可能中途碰到 ‘\n'，消息实际上有可能并没有传完。
+    //使用'\n'作为消息的界限，自己又没能力控制，为了应付这种情况，只能检查最后一个字符，
+    //结果就是一旦粘包，系统就玩儿完。好人啊，bug就是程序员的饭碗。
     /*
     int     count   = 0;
     for (int i = _recvBuff.dataLen(); i >= 1; i--)	
@@ -45,9 +42,14 @@ CRCClientCTxt::checkTxtResponse()
         temp--;
         count++;
     }
-
     CRCLog_Info("CRCClientCTxt::checkTxtResponse() cycle count <%d>", count);
     */
+    //仅仅检查每次消息的最后一个字符。祈祷不会遇到：消息没完，最后一个字符又是’\n‘的情况。
+    char*   temp    = _recvBuff.data() + _recvBuff.dataLen() - 1;
+    bool    found   = false;
+    if (*temp == '\n'){
+        found = true;
+    }
 
     //未找到表示消息还不完整
     if (!found){
