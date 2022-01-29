@@ -6,15 +6,26 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <dirent.h>
+#include <pthread.h>
 
 namespace SVRUTILS
 {
-    #define MAX_SIZE    1024
-    #define MAXMEDIA    12*50
+    #define MAX_SIZE        1024
+    #define MAXMEDIA        12*50
+    #define facto           98llu
+    #define ROUDNUP(x,y)    (((x+(y-1))/y)*y)
+
+    /* type size */
+    const unsigned long long    BD128SIZE =	(128001769472l  * facto) / 100llu;
+    const unsigned long long    BD100SIZE =	(100103356416l  * facto) / 100llu;
+    const unsigned long long	BD50SIZE  =	(50050629632l   * facto) / 100llu;
+    const unsigned long long	BD25SIZE  =	(25025314816l   * facto) / 100llu;
+    const unsigned long long	DVD4SIZE  =	(4706074624l    * facto) / 100llu;
+    const unsigned long long	CDROMSIZE =	(629145600l     * facto) / 100llu;
 
     static char MAINPATH[MAX_SIZE];
     static char LOGPATH[MAX_SIZE];
-    static char LOGSUBPATH[MAX_SIZE];
     static char TMPPATH[MAX_SIZE];
     static char CACHEPATH[MAX_SIZE];
     static char MIRRORPATH[MAX_SIZE];
@@ -140,6 +151,214 @@ namespace SVRUTILS
         snprintf(XMLPATH,sizeof(XMLPATH),"%sconfig.xml",MAINPATH);
         
         return true;
+    }
+
+    static char *StrRpl(const char *in, char *out, int outlen, const char *src, const char *dst);
+
+    static int GetMD5ValueOfFile(const char* filename, char* result, int len)
+    {
+        char cmd[1024];
+        char line[1024];
+        char result_file[1024];
+        snprintf(result_file, sizeof(result_file), "/tmp/md5sum-%ld.txt", pthread_self());
+
+        if(len <= 32){
+            printf("result space should be larger than 32, but is %d\n", len);
+            return -1;
+        }
+
+        char filename2[1024];
+
+        StrRpl(filename, filename2, 1024, "\"", "\\\"");
+
+        snprintf(cmd,sizeof(cmd), "md5sum \"%s\" > %s", filename2, result_file);
+        if(SystemExec(cmd) != 0){
+            printf("md5sum failed,%s\n", filename);
+            return -2;
+        }
+
+        FILE* f = fopen(result_file, "r");
+        if(f == NULL){
+            printf("open result failed,%s\n", result_file);
+            return -3;
+        }
+        memset(line, 0, 1024);
+        fgets(line, 1024, f);
+        if (f){
+            fclose(f);
+            f=NULL;
+        }
+        if(strlen(line) < 32){
+            printf("the result is incorrect,%s\n", result);
+            return -4;
+        }
+
+        line[32] = '\0';
+
+        memset(result,0,len);   
+        strncpy(result, line,len-1);     
+
+        remove(result_file);
+
+        return 0;
+    }
+
+    static char *StrRpl(const char *in, char *out, int outlen, const char *src, const char *dst)  
+    {  
+        const char *p = in;
+        char *pOut = out;
+        //unsigned int  len = outlen - 1;  
+        int src_len, dst_len;
+        memset(out, 0, outlen);
+
+        // 这几段检查参数合法性  
+        if((NULL == src) || (NULL == dst) || (NULL == in) || (NULL == out))  
+        {  
+            return NULL;  
+        }  
+        
+        if((strcmp(in, "") == 0) || (strcmp(src, "") == 0))  
+        {
+            memset(out,0,outlen);  
+                strncpy(out, in,outlen-1);  
+            return out;  
+        }
+
+        if(outlen <= 0)  
+        {  
+            return NULL;  
+        }
+
+        src_len = strlen(src);
+        dst_len = strlen(dst);
+
+        while(*p != '\0')
+        {  
+            if(strncmp(p, src, src_len) == 0)  
+            {
+                if(dst_len + pOut > out + outlen - 1){
+                    printf("out buffer overflow, %d, %ld.\n", outlen, pOut-out+dst_len);
+                    return NULL;
+                }
+                
+                strncpy(pOut, dst,dst_len);
+
+                //printf("replace %s with %s, %s\n", src, dst, out);
+
+                pOut += dst_len;
+                p += src_len;  
+            }  
+            else  
+            {
+                *pOut = *p;  
+    
+                p++;
+                pOut ++;
+            }
+        }
+    
+        return out;  
+    }
+
+    static int CheckMd5(const char* root)
+    {
+        int ret;
+        char listfile[PATH_MAX];
+        snprintf(listfile,sizeof(listfile), "%s/.midas_file_list", root);
+
+        if(access(listfile, F_OK) != 0){
+            printf("List file not Found %s\n", listfile);
+            return 1;
+        }
+
+        FILE* f = fopen(listfile, "rb");
+        if(f == NULL){
+            printf("open %s failed\n",listfile); 
+            return 2;
+        }
+
+        char sub_path[PATH_MAX];
+        while(1){
+            if(NULL == fgets(sub_path,sizeof(sub_path),f)){
+                break;
+            }
+            char* p = NULL;
+            char full_path[PATH_MAX];
+            char md5value1[128];
+            char md5value2[128];
+            //long lSize1, lSize2;
+
+            if (strlen(sub_path)>0)
+            {
+                /* cut media type \n */
+                p = strchr(sub_path,'\n');
+                if (p) *p= '\0';
+                p = strchr(sub_path,'\r');
+                if (p)	*p= '\0';
+            }
+
+            p = strrchr(sub_path, ',');
+            if(p == NULL){
+                printf("invalid row %s\n", sub_path);
+                ret = 2;
+                goto LAB_RET;
+            }
+
+            memset(md5value1,0,sizeof(md5value1));     
+            strncpy(md5value1, p+1,sizeof(md5value1)-1);  
+
+            *p= '\0';
+
+            p = strrchr(sub_path, ',');
+            if(p == NULL){
+                printf("invalid row %s\n", sub_path);
+                ret = 2;
+                goto LAB_RET;
+            }
+
+            //lSize1 = strtol(p+1, NULL, 10 );
+
+            *p= '\0';
+
+            p = strrchr(sub_path, ',');
+            if(p == NULL){
+                printf("invalid row %s\n", sub_path);
+                ret = 2;
+                goto LAB_RET;
+            }
+            
+            *p= '\0';
+
+            *(p-1) = '\0';
+
+            char sub_path2[1024];
+            StrRpl(&sub_path[1], sub_path2, 1024, "\"\"", "\"");
+
+            snprintf(full_path,sizeof(full_path), "%s/%s", root, sub_path2);
+
+            //printf("%s,%s\n", full_path, md5value1);
+
+            if(0 != GetMD5ValueOfFile(full_path,md5value2, sizeof(md5value2))){
+                printf("Get md5 value failed %s\n", full_path);
+                ret = 2;
+                goto LAB_RET;
+            }
+
+            if(strcmp(md5value1, md5value2) != 0){
+                printf("MD5 values not match %s,%s,%s\n", full_path, md5value1, md5value2);
+                ret = 2;
+                goto LAB_RET;
+            }
+        }
+
+        ret = 0;
+        
+    LAB_RET:
+        if(f != NULL){
+            fclose(f);
+            f=NULL;
+        }
+        return ret;
     }
 
 }

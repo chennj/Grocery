@@ -36,7 +36,7 @@ public:
 public:
 	CRCClient(SOCKET sockfd = INVALID_SOCKET, int sendSize = SEND_BUFF_SZIE, int recvSize = RECV_BUFF_SZIE);
 
-	~CRCClient();
+	virtual ~CRCClient();
 
 	inline SOCKET sockfd()
 	{
@@ -149,10 +149,10 @@ public:
 protected:
 	// socket fd_set  file desc set
 	SOCKET _sockfd = INVALID_SOCKET;
-	//第二缓冲区 接收消息缓冲区
-	CRCBuffer _recvBuff;
 	//发送缓冲区
 	CRCBuffer _sendBuff;
+	//第二缓冲区 接收消息缓冲区
+	CRCBuffer _recvBuff;
 	//心跳死亡计时
 	time_t _dtHeart = 0;
 	//上次发送消息数据的时间 

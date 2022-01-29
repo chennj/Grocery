@@ -5,6 +5,9 @@ CRCClientCTxt::CRCClientCTxt(SOCKET sockfd, int sendSize, int recvSize) :
 {
 }
 
+CRCClientCTxt::~CRCClientCTxt()
+{}
+
 bool 
 CRCClientCTxt::hasMsg()
 {

@@ -9,6 +9,7 @@ class CRCClientCWebSocket :public CRCClientCHttp
 {
 public:
     CRCClientCWebSocket(SOCKET sockfd = INVALID_SOCKET, int sendSize = SEND_BUFF_SZIE, int recvSize = RECV_BUFF_SZIE);
+    virtual ~CRCClientCWebSocket();
 
     virtual bool hasMsg() override;
 

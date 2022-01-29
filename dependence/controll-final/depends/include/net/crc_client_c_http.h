@@ -10,6 +10,7 @@ class CRCClientCHttp : public CRCClient
 {
 public:
     CRCClientCHttp(SOCKET sockfd = INVALID_SOCKET, int sendSize = SEND_BUFF_SZIE, int recvSize = RECV_BUFF_SZIE);
+    virtual ~CRCClientCHttp();
 
     //是否有新的消息进来
     virtual bool hasMsg() override;

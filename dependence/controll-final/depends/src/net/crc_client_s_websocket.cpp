@@ -3,7 +3,10 @@
 
 CRCClientSWebSocket::CRCClientSWebSocket(SOCKET sockfd, int sendSize, int recvSize)
     :CRCClientSHttp(sockfd, sendSize, recvSize)
-    {}
+{}
+
+CRCClientSWebSocket::~CRCClientSWebSocket()
+{}
 
 bool 
 CRCClientSWebSocket::handshake()

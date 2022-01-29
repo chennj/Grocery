@@ -95,6 +95,7 @@ CRCNetClientC::connect(const char* link_name,const char* url)
         on_net_msg_do("onerror", json);
     };
 
+    return true;
 }
 
 bool 

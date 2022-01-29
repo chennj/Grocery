@@ -8,6 +8,7 @@ class CRCClientCTxt : public CRCClient
 public:
     explicit CRCClientCTxt() = delete;
     explicit CRCClientCTxt(SOCKET sockfd = INVALID_SOCKET, int sendSize = SEND_BUFF_SZIE, int recvSize = RECV_BUFF_SZIE);
+    virtual ~CRCClientCTxt();
 
 public:
     //是否有新的消息进来

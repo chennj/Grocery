@@ -9,6 +9,7 @@ class CRCClientSWebSocket : public CRCClientSHttp
 {
 public:
     CRCClientSWebSocket(SOCKET sockfd = INVALID_SOCKET, int sendSize = SEND_BUFF_SZIE, int recvSize = RECV_BUFF_SZIE);
+    virtual ~CRCClientSWebSocket();
 
     bool handshake();
 

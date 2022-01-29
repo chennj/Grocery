@@ -18,6 +18,7 @@ public:
 
 public:
     CRCClientSHttp(SOCKET sockfd = INVALID_SOCKET, int sendSize = SEND_BUFF_SZIE, int recvSize = RECV_BUFF_SZIE);
+    virtual ~CRCClientSHttp();
 
     virtual bool hasMsg() override;
 

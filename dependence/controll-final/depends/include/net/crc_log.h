@@ -4,6 +4,7 @@
 #include "crc_base.h"
 #include "crc_task.h"
 #include <ctime>
+
 class CRCLog
 {
 //Info  普通信息
@@ -12,7 +13,7 @@ class CRCLog
 //Error 错误信息
 #ifdef _DEBUG
 #ifndef CRCLog_Debug
-#define CRCLog_Debug(...) CRCLog::Debug(__VA_ARGS__)
+#define CRCLog_Debug(...) 	CRCLog::Debug(__VA_ARGS__)
 #endif
 #else
 #ifndef CRCLog_Debug
@@ -20,11 +21,11 @@ class CRCLog
 #endif
 #endif // _DEBUG
 
-#define CRCLog_Info(...) CRCLog::Info(__VA_ARGS__)
+#define CRCLog_Info(...) 	CRCLog::Info(__VA_ARGS__)
 #define CRCLog_Warring(...) CRCLog::Warring(__VA_ARGS__)
-#define CRCLog_Error(...) CRCLog::Error(__VA_ARGS__)
-#define CRCLog_Error(...) CRCLog::Error(__VA_ARGS__)
-#define CRCLog_PError(...) CRCLog::PError(__VA_ARGS__)
+#define CRCLog_Error(...) 	CRCLog::Error(__VA_ARGS__)
+#define CRCLog_Error(...) 	CRCLog::Error(__VA_ARGS__)
+#define CRCLog_PError(...) 	CRCLog::PError(__VA_ARGS__)
 
 private:
 	CRCLog()

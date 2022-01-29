@@ -1,5 +1,6 @@
 #include "svr_machine.h"
 #include "svr_utils.h"
+#include "svr_comm_dir.h"
 
 #include <sys/ioctl.h>
 #include <linux/cdrom.h>
@@ -320,7 +321,6 @@ MachineServer::update_storage_info()
     //来之at91的 MidasBox
     //记录着所有设备信息
     MidasBox*   pMidasBox   = nullptr;
-    int         datalen     = 0;
     char        cmdBuf[64];
     FILE*       file        = NULL;
     std::string from        = "local_update_storage_info";
@@ -582,6 +582,7 @@ MachineServer::inventory(CRCJson * pJson)
     pool.init(4);
     pool.start();
 
+    int count = 0;
 	for (int i = 0; i < MAGSLOTMAX; i++)
 	{
 		if (m_storage.mag_slotarray[i].mag_plug == 1)
@@ -590,18 +591,23 @@ MachineServer::inventory(CRCJson * pJson)
 				if ((m_storage.media_attr[i*MAGITEMMAX+j].cdexist == PRESENCE) &&
 					(m_storage.media_attr[i*MAGITEMMAX+j].ischecked !=1) &&
 					(m_storage.media_attr[i*MAGITEMMAX+j].slot_status == 'N'))
-				{
-                    pool.exec(std::bind(&MachineServer::get_discinfo, this, std::placeholders::_1,std::placeholders::_1), i*50+j+1, true );
+				{   
+                    count++;
+                    pool.exec(std::bind(&MachineServer::get_discinfo, this, std::placeholders::_1,std::placeholders::_2), i*MAGITEMMAX+j+1, true );
                     //先测试盘点一张盘
-                    break;
+                    //break;
 				}
 				
 			}
 		}			
 	}
+    CRCLog_Info("盘点光盘数：%d",count);
+    
     pool.waitForAllDone();
     pool.stop();
 
+    CRCLog_Info("盘点结束");
+    
     CRCJson ret;
     ret.Add("data", "盘点结束");
     _csCtrl.response(*pJson, ret);    
@@ -616,9 +622,11 @@ MachineServer::inventory(CRCJson * pJson)
 void
 MachineServer::get_discinfo(uint32_t cd_addr, bool is_returndisc)
 {
-    int try_num = 2;
+    int try_num = 1;
     int ret = -1;
     char cmd_buf[256];
+
+    CRCLog_Info("START process GetDiskInfo = %d",cd_addr);
 
     m_storage.media_attr[cd_addr-1].slot_status = 'P';
 
@@ -626,16 +634,40 @@ MachineServer::get_discinfo(uint32_t cd_addr, bool is_returndisc)
     for (int i = 0; i < try_num; i++)
     {
         int cdrom_addr = move_disc2cdrom(cd_addr);
-        if (cdrom_addr = NODISC){
+        if (cdrom_addr == NODISC){
             //delete mirror fs
             sprintf(cmd_buf,"rm -Rf %s/%04d_*",SVRUTILS::LOGPATH,cd_addr);
             SVRUTILS::SystemExec(cmd_buf);
             break;
         }
         if (cdrom_addr > 0){
+            /*测试不检查
+            CRCLog_Debug("get_discinfo: %d before check_cd_cdrom(cd_addr, record_addr, 0)\n",__LINE__);
             ret = check_cd_cdrom(cd_addr, cdrom_addr, 0);
+            CRCLog_Debug("get_discinfo: %d after  check_cd_cdrom(cd_addr, record_addr, 0)\n",__LINE__);
+
+            if (ret == NOINFO)
+            {
+                printf("get_discinfo: CANN'T Get %d disc info,retry %d!\n",cd_addr,i);
+            }
+
+            if (ret == -1){
+				CRCLog_Error("get_discinfo: analysis disc <%d> info exception", cd_addr);
+			}            
+            */
+             std::this_thread::sleep_for(std::chrono::milliseconds(15*1000));
+
+            if (is_returndisc)
+            {
+                CRCLog_Debug("%d before cdrom_return_disc(cdrom_addr)\n",__LINE__);
+                ret = cdrom_return_disc(cdrom_addr);
+                CRCLog_Debug("%d after  cdrom_return_disc(cdrom_addr)\n",__LINE__);
+            }
+
         }
     }
+
+    CRCLog_Info("END process GetDiskInfo = %d",cd_addr);
 }
 
 void 
@@ -916,9 +948,9 @@ MachineServer::move_disc2eqpt(int dest_addr, int src_addr)
     }
 
     //等待结果返回
-    CRCLog_Info("update_storeage_info WAITTING msg key<%s> return ...", key.c_str());
+    CRCLog_Info("move_disc2eqpt WAITTING msg key<%s> return ...", key.c_str());
 
-    if (!wait_for(key, "move_disc2recorder recv timeout", rm))
+    if (!wait_for(key, "move_disc2eqpt recv timeout", rm))
     {
         return -999;
     }
@@ -1174,13 +1206,147 @@ MachineServer::check_cd_cdrom(int cd_addr, int cdrom_addr, int md5_check)
 				}
 			}
 
-			CRCLog_Info("check_cd_cdrom:StorageDupDir %s\n",cmd_buf);
+			CRCLog_Info("check_cd_cdrom: StorageDupDir %s\n",cmd_buf);
 
-            //if(XStorageDupDir(mount_point,cmd_buf) != 0){
-            //}
-        }
-    }//!有文件系统
-    
+            if(SvrDir::Inst().DuplicateDir(mount_point,cmd_buf) != 0){
+                CRCLog_Error("check_cd_cdrom: duplicate dir %s from %s failed!\n", cmd_buf, mount_point);
+                return DUPDIRERR;
+            } else {
+				snprintf(mod_cmd,sizeof(mod_cmd),"chown -Rf admin \"%s\"",cmd_buf);
+				SVRUTILS::SystemExec(mod_cmd);
+				snprintf(mod_cmd,sizeof(mod_cmd),"chgrp -Rf admin \"%s\"",cmd_buf);
+				SVRUTILS::SystemExec(mod_cmd);
+
+                //generate grep info
+				{
+					char grep_cmd[1024];
+					snprintf(grep_cmd,sizeof(grep_cmd),"find \"%s\" >%s/%04d-%s.grep",
+						cmd_buf,SVRUTILS::DINFOPATH,cd_addr,
+						m_storage.mag_slotarray[(cd_addr-1)/50].magazine.serial);
+					SVRUTILS::SystemExec(grep_cmd);
+				}
+
+                if(md5_check)
+                {
+					int ret_check = SVRUTILS::CheckMd5(mount_point);
+					if (ret_check == 2)
+                    {
+						CRCLog_Error("check_cd_cdrom: MD5 check failed: %d\n", ret_check);
+
+						snprintf(cmd_buf,sizeof(cmd_buf),"%s/%04d_BadMedia",SVRUTILS::MIRRORPATH,cd_addr);
+
+						if (access(cmd_buf,F_OK)!=0)
+						{
+							if (mkdir(cmd_buf,S_IRWXU|S_IWOTH|S_IRWXG|S_IRGRP|S_IWOTH) !=0)
+							{
+								perror("mkdir:");
+								return -1;
+							}
+						}
+						snprintf(mod_cmd,sizeof(mod_cmd),"chown -Rf admin \"%s\"",cmd_buf);
+						SVRUTILS::SystemExec(mod_cmd);
+						snprintf(mod_cmd,sizeof(mod_cmd),"chgrp -Rf admin \"%s\"",cmd_buf);
+						SVRUTILS::SystemExec(mod_cmd);
+						CRCLog_Error("check_cd_cdrom: %d   is  DAMAGE disk\n",cd_addr);
+						/* 0 unknown ,1 blank 2 damage disk */
+						m_storage.media_attr[cd_addr-1].isblank = 2;
+                    }
+
+                }//!if(md5_check)
+
+            }//!if(SvrDir::Inst().DuplicateDir(mount_point,cmd_buf) != 0)::else
+
+        }//!if (xmount(dev_name,mount_point,diskTypeInfo.fs_type,cdrom_addr)
+        else 
+        //光盘信息可以读出来，但是无法mount上，可能是光盘坏了，或是光驱的问题，标记为坏盘
+        {
+			sprintf(cmd_buf,"%s/%04d_BadMedia",SVRUTILS::MIRRORPATH,cd_addr);
+			if (access(cmd_buf,F_OK)!=0)
+			{
+				if (mkdir(cmd_buf,S_IRWXU|S_IWOTH|S_IRWXG|S_IRGRP|S_IWOTH) !=0)
+				{
+					perror("mkdir:");
+					return -1;
+				}
+			}
+			snprintf(mod_cmd,sizeof(mod_cmd),"chown -Rf admin \"%s\"",cmd_buf);
+			SVRUTILS::SystemExec(mod_cmd);
+			snprintf(mod_cmd,sizeof(mod_cmd),"chgrp -Rf admin \"%s\"",cmd_buf);
+			SVRUTILS::SystemExec(mod_cmd);
+        }//!if (xmount(dev_name,mount_point,diskTypeInfo.fs_type,cdrom_addr)::else
+
+    }//!有文件系统，如果是多段的话，必须最后一段是empty,否则是坏盘
+    else 
+    //空盘 ,多轨盘空盘，格式化过的空盘
+    {
+        if ((!strcmp(diskTypeInfo.media_status_str,"blank"))|| is_blank_BD_RE(&diskTypeInfo) )
+        {
+			m_storage.media_attr[cd_addr-1].isblank = 1;
+			snprintf(cmd_buf,sizeof(cmd_buf),"%s/%04d_Blank_%s",SVRUTILS::MIRRORPATH,cd_addr,diskTypeInfo.media_type_str);
+			if (access(cmd_buf,F_OK)!=0)
+			{
+				if (mkdir(cmd_buf,S_IRWXU|S_IWOTH|S_IRWXG|S_IRGRP|S_IWOTH) !=0)
+				{
+					perror("mkdir:");
+					return -1;
+				}
+			}
+			snprintf(mod_cmd,sizeof(mod_cmd),"chown -Rf admin \"%s\"",cmd_buf);
+			SVRUTILS::SystemExec(mod_cmd);
+			snprintf(mod_cmd,sizeof(mod_cmd),"chgrp -Rf admin \"%s\"",cmd_buf);
+			SVRUTILS::SystemExec(mod_cmd);
+			//设定全盘描述
+			m_storage.media_attr[cd_addr-1].media_addr  = cd_addr;
+			m_storage.media_attr[cd_addr-1].isblank     = 1;
+			CRCLog_Info("check_cd_cdrom: %d is  blank disk, %s  \n",cd_addr, diskTypeInfo.media_status_str);
+        }//!if ((!strcmp(diskTypeInfo.media_status_str,"blank"))|| isBlankBD_RE(&diskTypeInfo) )
+        else if (
+                    (!strcmp(diskTypeInfo.media_last_session_status,"empty"))&&(!strcmp(diskTypeInfo.media_status_str,"appendable"))
+                )
+        {
+			m_storage.media_attr[cd_addr-1].isblank = 0;
+			m_storage.media_attr[cd_addr-1].isappendable = 1;
+			snprintf(cmd_buf,sizeof(cmd_buf),"%s/%04d_AppenBlank",SVRUTILS::MIRRORPATH,cd_addr);
+			if (access(cmd_buf,F_OK)!=0)
+			{
+				if (mkdir(cmd_buf,S_IRWXU|S_IWOTH|S_IRWXG|S_IRGRP|S_IWOTH) !=0)
+				{
+					perror("mkdir:");
+					return -1;
+				}
+			}
+			snprintf(mod_cmd,sizeof(mod_cmd),"chown -Rf admin \"%s\"",cmd_buf);
+			SVRUTILS::SystemExec(mod_cmd);
+			snprintf(mod_cmd,sizeof(mod_cmd),"chgrp -Rf admin \"%s\"",cmd_buf);
+			SVRUTILS::SystemExec(mod_cmd);
+			/* 设定全盘描述 */
+			m_storage.media_attr[cd_addr-1].media_addr = cd_addr;
+			CRCLog_Info("check_cd_cdrom: %d is  appendable blank disk  \n",cd_addr);
+        }//!if ((!strcmp(diskTypeInfo.media_status_str,"blank"))|| isBlankBD_RE(&diskTypeInfo) )::else if
+        else 
+        {
+			snprintf(cmd_buf,sizeof(cmd_buf),"%s/%04d_BadMedia",SVRUTILS::MIRRORPATH,cd_addr);
+			if (access(cmd_buf,F_OK)!=0)
+			{
+				if (mkdir(cmd_buf,S_IRWXU|S_IWOTH|S_IRWXG|S_IRGRP|S_IWOTH) !=0)
+				{
+					perror("mkdir:");
+					return -1;
+				}
+			}
+			snprintf(mod_cmd,sizeof(mod_cmd),"chown -Rf admin \"%s\"",cmd_buf);
+			SVRUTILS::SystemExec(mod_cmd);
+			snprintf(mod_cmd,sizeof(mod_cmd),"chgrp -Rf admin \"%s\"",cmd_buf);
+			SVRUTILS::SystemExec(mod_cmd);
+			CRCLog_Info("check_cd_cdrom: %d   is  DAMAGE disk\n",cd_addr);
+			/* 0 unknown ,1 blank 2 damage disk */
+			m_storage.media_attr[cd_addr-1].isblank = 2;
+        }//!if ((!strcmp(diskTypeInfo.media_status_str,"blank"))|| isBlankBD_RE(&diskTypeInfo) )::else
+    }
+
+    m_storage.media_attr[cd_addr-1].ischecked = 1;
+
+    return ret;
 }
 
 int
@@ -1376,4 +1542,146 @@ MachineServer::xumount(char *devname,int flag,int cdrom_addr)
 		aFile=NULL; 
 	}
 	return ret ;    
+}
+
+int 
+MachineServer::is_blank_BD_RE(SDiskTypeInfo* info)
+{
+    CRCLog_Debug("%s,%s,%s,%d\n",info->media_type_str,info->media_last_session_status,info->media_status_str,info->media_number_session);
+
+	if(strcmp(info->media_type_str, "BD-RE") != 0){
+		return 0;
+	}
+
+	return !strcmp(info->media_last_session_status,"complete")
+		&& !strcmp(info->media_status_str,"complete")
+		&& info->media_number_session == 1;    
+}
+
+int 
+MachineServer::cdrom_return_disc(int cdrom_addr)
+{
+    //组装命令
+    char cmd_buff[256]      = {0};
+    sprintf(cmd_buff,"CDOU,0x%04x,\n",cdrom_addr);
+    CRCLog_Info("cdrom_return_disc command: %s\n", cmd_buff);    
+
+    int ret = -1;
+
+    for (int i=0; i<3; i++)
+    {
+        //定义命令
+        std::string from        = "cdrom_return_disc";
+        uint32_t    fromId      = m_atomic++;
+        RetMessage* rm          = nullptr;
+        CRCJson *   pMsg        = new CRCJson();
+
+        //生成任务对象
+        pMsg->Add("cmdTransfer",    cmd_buff);
+        pMsg->Add("from",           from);
+        pMsg->Add("fromId",         fromId);
+        pMsg->Add("status",         "ready");
+
+        //这个key值用来在结果集中查找返回结果
+        std::string&& key = gen_key(*pMsg);
+
+        //将任务放入发送任务队列
+        {
+            std::unique_lock<std::mutex> lock(_task_queue_mtx);
+            _task_queue.push(pMsg);
+        }
+
+        //等待结果返回
+        CRCLog_Info("cdrom_return_disc WAITTING CDOU msg key<%s> return ...", key.c_str());
+
+        if (!wait_for(key, "cdrom_return_disc recv timeout", rm))
+        {
+            return -999;
+        }
+
+        if (strncmp(rm->data,"RET,0",5) == 0){
+            ret = 0;
+            delete rm;
+            break;
+        } else {
+            delete rm;
+        }
+    }
+
+    if (ret != 0){
+        return ret;
+    }
+
+    //组装命令
+    memset (cmd_buff,0,sizeof(cmd_buff));
+    sprintf(cmd_buff,"HIDE,0x%04x,\n",cdrom_addr);
+
+    int cd_addr = m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].media_address;
+
+    std::string from        = "cdrom_return_disc";
+    uint32_t    fromId      = m_atomic++;
+    RetMessage* rm          = nullptr;
+    CRCJson *   pMsg        = new CRCJson();
+
+    //生成任务对象
+    pMsg->Add("cmdTransfer",    cmd_buff);
+    pMsg->Add("from",           from);
+    pMsg->Add("fromId",         fromId);
+    pMsg->Add("status",         "ready");
+
+    //这个key值用来在结果集中查找返回结果
+    std::string&& key = gen_key(*pMsg);
+
+    //将任务放入发送任务队列
+    {
+        std::unique_lock<std::mutex> lock(_task_queue_mtx);
+        _task_queue.push(pMsg);
+    }
+
+    //等待结果返回
+    CRCLog_Info("cdrom_return_disc WAITTING HIDE msg key<%s> return ...", key.c_str());
+
+    if (!wait_for(key, "cdrom_return_disc recv timeout", rm))
+    {
+        return -999;
+    }
+
+    if (strncmp(rm->data,"RET,0",5) == 0)
+    //回盘成功
+    {
+
+        printf("cdrom_return_disc:dev: 0x%04x to %d, succesful!\n",cdrom_addr, cd_addr);
+        //更新光驱信息
+        m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].is_have_media = NOPRESENCE;
+        m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].media_address = cdrom_addr;
+        m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].is_busy       = 0;
+        m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].lock_num      = 0;
+        m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].is_mount      = 0;
+        //更新光盘信息
+        m_storage.media_attr[cd_addr-1].trayexist   = PRESENCE;	
+        m_storage.media_attr[cd_addr-1].cdexist     = PRESENCE;
+        ret = 0;
+    }
+    //回盘失败
+    else
+    {
+        if (strncmp(rm->data,"RET,-2",6) == 0)
+        //光驱里本来就没盘
+        {
+            printf("cdrom_return_disc:dev: 0x%04x to %d, , src have no disc!",cdrom_addr, cd_addr);
+            m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].is_have_media = NOPRESENCE;
+            m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].media_address = cdrom_addr;
+            m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].is_busy       = 0;
+            m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].lock_num      = 0;
+            ret = -2;
+        }
+        else
+        {
+            ret = -1;
+        }
+        
+    }
+    
+    delete rm;
+    return ret;
 }

@@ -3,6 +3,7 @@
 
 SRC 		= ../../../depends/src
 DEPEND		= ../../../depends
+COMM		= ../comm
 INCLUDE 	= \
 			-I ../../include \
 			-I ../../../depends/include/net \
@@ -13,12 +14,13 @@ INCLUDE 	= \
 
 STATIC		= 
 CXX			= g++
-LIBS		= -lpthread -L../../../dvdrw-medinfo/ -lblkid -ldvd+rw
+LIBS		= -lpthread -L../../../dvdrw-medinfo/ -lblkid -ldvd+rw -luuid
 FLAGS		= -Wall
 
 SERVER		= machineserver
 SERVERSRC 	= \
 			svr_machine_main.cpp svr_machine.cpp \
+			$(COMM)/*.cpp \
 			$(SRC)/net/*.cpp \
 			$(DEPEND)/threadpool/crc_thread_pool.cpp \
 			$(DEPEND)/thrd-json/CJsonObject.cpp \

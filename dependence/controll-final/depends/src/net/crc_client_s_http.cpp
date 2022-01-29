@@ -4,6 +4,9 @@ CRCClientSHttp::CRCClientSHttp(SOCKET sockfd, int sendSize, int recvSize)
     : CRCClient(sockfd, sendSize,recvSize)
 {}
 
+CRCClientSHttp::~CRCClientSHttp()
+{}
+
 bool 
 CRCClientSHttp::hasMsg()
 {

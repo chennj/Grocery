@@ -187,7 +187,7 @@ protected:
     //生成消息key
     std::string gen_key(const CRCJson & json);
     //wait for
-    bool wait_for(const std::string& key, const std::string& msg, RetMessage*& pRmOut, uint32_t timeout = 30 * 1000);
+    bool wait_for(const std::string& key, const std::string& msg, RetMessage*& pRmOut, uint32_t timeout = 60 * 1000);
     //移动光盘到光驱
     int  move_disc2cdrom(int cd_addr);
     //检查光驱状态
@@ -209,6 +209,11 @@ protected:
     int  xmount (char *devname, char* mntdir, char *fstype, int cdrom_addr);
     //卸载光驱
     int  xumount(char *devname,int flag,int cdrom_addr);
+    //
+    int  is_blank_BD_RE(SDiskTypeInfo* info);
+    //将光盘放回盘仓
+    //0:成功，-1，失败，-2：源中无盘
+    int  cdrom_return_disc(int cdrom_addr);
 };
 
 #endif

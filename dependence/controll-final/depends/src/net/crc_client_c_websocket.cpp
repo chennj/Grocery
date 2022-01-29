@@ -6,6 +6,9 @@ CRCClientCWebSocket::CRCClientCWebSocket(SOCKET sockfd, int sendSize, int recvSi
 
 }
 
+CRCClientCWebSocket::~CRCClientCWebSocket()
+{}
+
 bool 
 CRCClientCWebSocket::hasMsg() 
 {
