@@ -7,8 +7,9 @@ class Test
 {
 public:
 	int test(int i) {
-		std::cout << _name << ", i = " << i << std::endl;
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		//std::cout << _name << ", i = " << i << std::endl;
+		CRCLog_Info("%s, count<%d>", _name.c_str(), i);
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000*15));
 		return i;
 	}
 	void setName(std::string name) {
@@ -111,12 +112,34 @@ void test3()
 	threadpool.stop();
 }
 
+void test4()
+{
+	//设置运行日志名称
+	CRCLog::Instance().setLogPath("ThreadPoolLog", "w", false);
+
+	CRCThreadPool threadpool;
+	threadpool.init(4);
+	threadpool.start();								//启动线程池
+
+	Test t;
+	t.setName("test");
+	for (int i=0; i<13; i++){
+		threadpool.exec(std::bind(&Test::test, &t, std::placeholders::_1), i);
+	}
+	threadpool.waitForAllDone();
+	threadpool.stop();
+}
+
 int main()
 {
+	/*
 	CRCLog_Info("异步线程池测试：普通函数    -------------------");
 	test1();
 	CRCLog_Info("异步线程池测试：异步返回结果 -------------------");
 	test2();
 	CRCLog_Info("异步线程池测试：象函数的绑定 -------------------");
 	test3();
+	*/
+	CRCLog_Info("异步线程池测试：多任务 -------------------");
+	test4();
 }

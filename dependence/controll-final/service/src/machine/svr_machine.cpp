@@ -265,6 +265,7 @@ MachineServer::do_action(MachineTaskType taskType, CRCJson * pJson)
                 //改变状态：盘点
                 m_current_state = INVENTORY;
                 //盘点入池
+                //inventory(pMsg);
                 m_thread_pool.exec(std::bind(&MachineServer::inventory, this, std::placeholders::_1), pMsg);
             }
             break;
@@ -313,7 +314,6 @@ MachineServer::OnProcess4Equipment(const char* pData, CRCClientCTxt* pTxtClient)
         //_csCtrl.response(*pmsg, ret);    
     }
 }
-
 
 void
 MachineServer::update_storage_info()
@@ -579,10 +579,9 @@ void
 MachineServer::inventory(CRCJson * pJson)
 {
     CRCThreadPool pool;
-    pool.init(4);
+    pool.init(3);
     pool.start();
 
-    int count = 0;
 	for (int i = 0; i < MAGSLOTMAX; i++)
 	{
 		if (m_storage.mag_slotarray[i].mag_plug == 1)
@@ -592,7 +591,6 @@ MachineServer::inventory(CRCJson * pJson)
 					(m_storage.media_attr[i*MAGITEMMAX+j].ischecked !=1) &&
 					(m_storage.media_attr[i*MAGITEMMAX+j].slot_status == 'N'))
 				{   
-                    count++;
                     pool.exec(std::bind(&MachineServer::get_discinfo, this, std::placeholders::_1,std::placeholders::_2), i*MAGITEMMAX+j+1, true );
                     //先测试盘点一张盘
                     //break;
@@ -601,7 +599,6 @@ MachineServer::inventory(CRCJson * pJson)
 			}
 		}			
 	}
-    CRCLog_Info("盘点光盘数：%d",count);
     
     pool.waitForAllDone();
     pool.stop();
@@ -622,8 +619,8 @@ MachineServer::inventory(CRCJson * pJson)
 void
 MachineServer::get_discinfo(uint32_t cd_addr, bool is_returndisc)
 {
-    int try_num = 1;
-    int ret = -1;
+    int  try_num = 1;
+    int  ret = -1;
     char cmd_buf[256];
 
     CRCLog_Info("START process GetDiskInfo = %d",cd_addr);
@@ -633,7 +630,20 @@ MachineServer::get_discinfo(uint32_t cd_addr, bool is_returndisc)
     //如果盘没有读到 重新盘点一次
     for (int i = 0; i < try_num; i++)
     {
-        int cdrom_addr = move_disc2cdrom(cd_addr);
+        int cdrom_addr = 0;
+        MOVEDISCTOCDROM:
+        {
+            //为整个动作枷锁
+            std::unique_lock<std::mutex> lock(m_action_mtx);            
+            cdrom_addr = move_disc2cdrom(cd_addr);
+        }
+        if (cdrom_addr == 0){
+            //如果没有找到可用的光驱，睡一会儿再试；
+            CRCLog_Info("----WAITTING FOR AVAILABLE FREE CDROM FOR %d",cd_addr);
+            CRCThread::Sleep(1000*2);
+            goto MOVEDISCTOCDROM;
+        }
+
         if (cdrom_addr == NODISC){
             //delete mirror fs
             sprintf(cmd_buf,"rm -Rf %s/%04d_*",SVRUTILS::LOGPATH,cd_addr);
@@ -655,7 +665,7 @@ MachineServer::get_discinfo(uint32_t cd_addr, bool is_returndisc)
 				CRCLog_Error("get_discinfo: analysis disc <%d> info exception", cd_addr);
 			}            
             */
-             std::this_thread::sleep_for(std::chrono::milliseconds(15*1000));
+            std::this_thread::sleep_for(std::chrono::milliseconds((15 + rand() % 30)*1000));
 
             if (is_returndisc)
             {
@@ -780,9 +790,6 @@ MachineServer::move_disc2cdrom(int cd_addr)
     char status_name[100]   = {0};
     int  cdrom_addr         = 0;
 
-    //为整个动作枷锁
-    std::unique_lock<std::mutex> lock(m_action_mtx);
-
     //查找空闲光驱
     for (int i=0; i<RECORDERMAX; i++)
     {
@@ -796,7 +803,7 @@ MachineServer::move_disc2cdrom(int cd_addr)
 
             int status = check_cdrom_status(const_cast<char*>(m_storage.record_attr[i].dev_name));
             trans_cdrom_status(status,status_name);
-            CRCLog_Info("move_disc2recorder status of %s is %s, %d\n", m_storage.record_attr[i].dev_name, status_name, status);
+            CRCLog_Info("move_disc2recorder status of %s is %s, %d", m_storage.record_attr[i].dev_name, status_name, status);
 			if(CDS_TRAY_OPEN == status || CDS_NO_DISC == status){
 				cdrom_addr = i + MIDAS_ELMADR_DT;
                 break;

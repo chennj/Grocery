@@ -86,6 +86,11 @@ bool
 CRCEasyTxtClient::auth()
 {
     CRCClientCTxt * pTxtClient = dynamic_cast<CRCClientCTxt*>(_pClient);
+    if (!pTxtClient){
+        CRCLog_Error("CRCEasyTxtClient::auth pTxtClient is null");
+        return false;
+    }
+
     std::string & ss = pTxtClient->getContent();
 
     if (ss.compare("AUTH,0,") == 0){
@@ -100,6 +105,10 @@ bool
 CRCEasyTxtClient::isAuth()
 {
     CRCClientCTxt * pTxtClient = dynamic_cast<CRCClientCTxt*>(_pClient);
+    if (!pTxtClient){
+        CRCLog_Error("CRCEasyTxtClient::auth pTxtClient is null");
+        return false;
+    }
     return pTxtClient->_isAuthed;
 }
 
