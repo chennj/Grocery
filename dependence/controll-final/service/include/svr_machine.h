@@ -8,6 +8,7 @@
 #include "crc_thread.h"
 #include "svr_machine_midasbox.h"
 #include "svr_machine_recorder.h"
+#include "svr_machine_printer.h"
 #include "crc_thread_pool.h"
 #include "dvd+rw-mediainfo.h"
 
@@ -32,6 +33,8 @@
 #define MAILBOXIN                   "mailbox in"
 #define MAILBOXOUT                  "mailbox out"
 #define INVENTORYTEST               "inventory"
+#define RETURN_DISC                 "return disc"
+#define QUERY_STATION               "query station"
 
 #define MAILBOXIN_TRANSFER          "MLIN,0x6001,\n"
 #define MAILBOXOUT_TRANSFER         "MLOU,0x6001,\n"
@@ -82,6 +85,8 @@ public:
         long long	        storage_used;
         //scsi host
         char		        scsi_host[12];
+        //设备属性
+        MidasBox            midas_box;
         //光驱属性，从at91获得
         RecordAttr          record_attr[RECORDERMAX];
         //midasbox 属性,从at91得到
@@ -214,6 +219,11 @@ protected:
     //将光盘放回盘仓
     //0:成功，-1，失败，-2：源中无盘
     int  cdrom_return_disc(int cdrom_addr);
+    //将所有光驱中的盘放回盘仓
+    //0:成功，-1，失败
+    int  cdrom_return_disc();
+    //站点信息
+    int  query_station(CRCJson * pJson);
 };
 
 #endif

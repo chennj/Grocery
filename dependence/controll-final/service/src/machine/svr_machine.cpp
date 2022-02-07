@@ -108,8 +108,8 @@ MachineServer::Close()
 void 
 MachineServer::MachineLoop(CRCThread* pThread)
 {
-    int s_size = CRCConfig::Instance().getInt("nSendBuffSize", SEND_BUFF_SZIE);
-    int r_size = CRCConfig::Instance().getInt("nRecvBuffSize", 65536);
+    int s_size = CRCConfig::Instance().getInt("nSendBuffSize", 65536*2);
+    int r_size = CRCConfig::Instance().getInt("nRecvBuffSize", 65536*2);
 
     CRCLog_Info("RECVBUFF Size: %d",r_size);
 
@@ -258,15 +258,21 @@ MachineServer::do_action(MachineTaskType taskType, CRCJson * pJson)
             if (command.compare(MAILBOXIN) == 0){
                 m_thread_pool.exec(std::bind(&MachineServer::mailbox_in, this, std::placeholders::_1), pMsg);
             }
+
             if (command.compare(MAILBOXOUT) == 0){
                 m_thread_pool.exec(std::bind(&MachineServer::mailbox_out, this, std::placeholders::_1), pMsg);
             }
+
             if (command.compare(INVENTORYTEST) == 0){
                 //改变状态：盘点
                 m_current_state = INVENTORY;
                 //盘点入池
-                //inventory(pMsg);
                 m_thread_pool.exec(std::bind(&MachineServer::inventory, this, std::placeholders::_1), pMsg);
+            }
+
+            if (command.compare(QUERY_STATION) == 0){
+                //获取站点信息
+                m_thread_pool.exec(std::bind(&MachineServer::query_station, this, std::placeholders::_1), pMsg);
             }
             break;
         }
@@ -412,6 +418,12 @@ MachineServer::update_storage_info()
         sizeof(MidasMagSlot)*MAGSLOTMAX
     );
 
+    memcpy(
+        (void*)&m_storage.midas_box,
+        pMidasBox,
+        sizeof(MidasBox)
+    );
+
     delete rm;
 
     //更新盘槽状态 ,用于盘槽状态发生变化 需要重新更新状态
@@ -512,6 +524,7 @@ MachineServer::update_storage_info()
 
     m_current_state = RUN;
 
+    cdrom_return_disc();
     return;
 
 	//查找光驱对应的设备名 host为空表示是SATA接口 否则HOST表示PCI 的HBA卡位置
@@ -573,6 +586,9 @@ MachineServer::update_storage_info()
 		}
 		
 	}
+
+    //将光驱的盘放回盘仓
+    cdrom_return_disc();
 }
 
 void
@@ -651,7 +667,7 @@ MachineServer::get_discinfo(uint32_t cd_addr, bool is_returndisc)
             break;
         }
         if (cdrom_addr > 0){
-            /*测试不检查
+            /*测试，不检查光盘信息
             CRCLog_Debug("get_discinfo: %d before check_cd_cdrom(cd_addr, record_addr, 0)\n",__LINE__);
             ret = check_cd_cdrom(cd_addr, cdrom_addr, 0);
             CRCLog_Debug("get_discinfo: %d after  check_cd_cdrom(cd_addr, record_addr, 0)\n",__LINE__);
@@ -1569,11 +1585,12 @@ int
 MachineServer::cdrom_return_disc(int cdrom_addr)
 {
     //组装命令
-    char cmd_buff[256]      = {0};
+    int  ret            = -1;
+    char cmd_buff[256]  = {0};
+    /*
     sprintf(cmd_buff,"CDOU,0x%04x,\n",cdrom_addr);
     CRCLog_Info("cdrom_return_disc command: %s\n", cmd_buff);    
 
-    int ret = -1;
 
     for (int i=0; i<3; i++)
     {
@@ -1618,7 +1635,7 @@ MachineServer::cdrom_return_disc(int cdrom_addr)
     if (ret != 0){
         return ret;
     }
-
+    */
     //组装命令
     memset (cmd_buff,0,sizeof(cmd_buff));
     sprintf(cmd_buff,"HIDE,0x%04x,\n",cdrom_addr);
@@ -1675,7 +1692,7 @@ MachineServer::cdrom_return_disc(int cdrom_addr)
         if (strncmp(rm->data,"RET,-2",6) == 0)
         //光驱里本来就没盘
         {
-            printf("cdrom_return_disc:dev: 0x%04x to %d, , src have no disc!",cdrom_addr, cd_addr);
+            printf("cdrom_return_disc:dev: 0x%04x to %d, src have no disc!",cdrom_addr, cd_addr);
             m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].is_have_media = NOPRESENCE;
             m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].media_address = cdrom_addr;
             m_storage.record_attr[cdrom_addr-MIDAS_ELMADR_DT].is_busy       = 0;
@@ -1691,4 +1708,216 @@ MachineServer::cdrom_return_disc(int cdrom_addr)
     
     delete rm;
     return ret;
+}
+
+int 
+MachineServer::cdrom_return_disc()
+{
+	for (int i =0; i < RECORDERMAX; i++)
+	{
+		if (m_storage.record_attr[i].is_pluging && m_storage.record_attr[i].is_have_media == PRESENCE)
+		{
+			int ret = cdrom_return_disc(MIDAS_ELMADR_DT+i);
+            if (ret != 0){break;}
+		}
+		
+	}    
+}
+
+int 
+MachineServer::query_station(CRCJson* pJson)
+{
+    std::string data;
+    char media_type[100];
+    char media_type_str[101];
+
+    data
+        .append("{")
+        .append("\"MachineType\":\"").append(const_cast<char*>(m_storage.midas_box.midas_attr.box_name)).append("\",")
+        .append("\"DoorStatus\":").append(1, m_storage.midas_box.door.door_flag).append(",")
+        .append("\"EventCnt\":").append("1").append(",")
+        .append("\"Mag\":[");
+
+    for (int i=0; i<12/*MAGSLOTMAX*/; i++)
+    {
+        if (m_storage.mag_slotarray[i].mag_plug == 0){
+            data
+                .append("\"MagNo\":").append(std::to_string(i)).append(",")
+                .append("\"Rfid\": ,\"unknown\":[]");
+        } else {
+            data
+                .append("{")
+                .append("\"MagNo\":").append(std::to_string(i)).append(",")
+                .append("\"Rfid\": \"").append(const_cast<char*>(m_storage.mag_slotarray[i].magazine.serial)).append("\",")
+                .append("\"Slot\":[");
+            for (int j=0; j<MAGITEMMAX; j++)
+            {
+                memset(media_type, 0, sizeof(media_type));
+                memset(media_type_str, 0, sizeof(media_type_str));
+
+				if (
+                    strncmp(const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_type_str),"BD-",3) == 0 &&
+                    strcmp (const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_last_session_status),"empty") == 0 &&
+                    strcmp (const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_status_str),"blank") == 0)
+                {
+					if (m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_capacity == 0){
+						snprintf(
+                            media_type,sizeof(media_type),"BD%.0f-%s",
+                            m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_track_freesize/1000.0/1000/1000,
+                            m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_type_str+3);
+                    } else {
+						snprintf(
+                            media_type,sizeof(media_type),"BD%.0f-%s",
+							m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_capacity/1000.0/1000/1000,
+							m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_type_str+3);
+
+                    }
+                }
+				else if(
+                    strncmp(const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_type_str),"BD-",3) == 0 &&
+					strcmp (const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_last_session_status),"complete") == 0 &&
+					strcmp (const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_status_str),"complete") == 0){
+					if (m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_capacity == 0){
+							snprintf(media_type,sizeof(media_type),"BD%.0f-%s",
+                            m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_track_freesize/1000.0/1000/1000,
+                            m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_type_str+3);
+					}
+					else{
+						snprintf(media_type,sizeof(media_type),"BD%.0f-%s",
+							m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_capacity/1000.0/1000/1000,
+							m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_type_str+3);
+					}
+				}
+				else{
+					strncpy(media_type, const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_type_str),sizeof(media_type)-1);
+				}
+
+				if (!strcmp(const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_status_str),"appendable")&&
+                    SVRUTILS::TRACK_NOT_CLOSED[i*MAGITEMMAX+j]==0){
+					snprintf(media_type_str,sizeof(media_type_str),"+%s",media_type);
+				}
+				else{
+					snprintf(media_type_str,sizeof(media_type_str),"%s",media_type);
+				}
+
+				char label_formatted1[256];
+				char label_formatted2[256];
+
+				memset(label_formatted1, 0, 256);
+				memset(label_formatted2, 0, 256);
+
+                SVRUTILS::StrRpl(const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.label_name), label_formatted1, 256, "\\", "\\\\");
+                strncpy         (label_formatted2, label_formatted1,sizeof(label_formatted2)-1);
+                memset          (label_formatted1, 0, 256);
+                SVRUTILS::StrRpl(label_formatted2, label_formatted1, 256, "\"", "\\\"");
+
+                data
+                    .append("{")
+                    .append("\"id\":").append(std::to_string(i*MAGITEMMAX+j+1)).append(",")
+                    .append("\"media_id\":\"")  .append(const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_id)).append("\",")
+                    .append("\"cdexist\":")     .append(1, m_storage.media_attr[i*MAGITEMMAX+j].cdexist).append(",")
+                    .append("\"trayexist\":")   .append(1, m_storage.media_attr[i*MAGITEMMAX+j].trayexist).append(",")
+                    .append("\"ischecked\":")   .append(1, m_storage.media_attr[i*MAGITEMMAX+j].ischecked).append(",")
+                    .append("\"isblank\":")     .append(1, m_storage.media_attr[i*MAGITEMMAX+j].isblank).append(",")
+                    .append("\"mediatype\":\"") .append(media_type_str).append("\",")
+                    .append("\"label\":\"")     .append(label_formatted1).append("\",")
+                    .append("\"slot_status\":") .append(std::to_string(m_storage.media_attr[i*MAGITEMMAX+j].slot_status))
+                    .append("}");
+
+            }//!for (int j=0; j<MAGITEMMAX; j++)
+
+            data.append("]}");
+        }
+
+    }//!for (i=0; i<12/*MAGSLOTMAX*/; i++)
+
+    data
+        .append("],")
+        .append("\"Drivers\":[");
+    for (int i = 0;i<6/*RECORDERMAX*/;i++)  //一般最多也就6个光驱
+    {
+		if (m_storage.record_attr[i].is_pluging)
+		{
+			char progress[256];
+			char label[256];
+
+			memset(progress,0,sizeof(progress));
+			memset(label,0,sizeof(label));
+
+			if (m_storage.record_attr[i].is_have_media == 'B')
+			{
+				char dev_name[32];
+				snprintf(dev_name,sizeof(dev_name),"sr%d",i);
+				SVRUTILS::GetCdromProgress(dev_name,progress);
+
+				strncpy(label, const_cast<char*>(m_storage.record_attr[i].mnt_dir),sizeof(label)-1);   
+				SVRUTILS::StrRpl(const_cast<char*>(m_storage.record_attr[i].burning_label), label, 256, "\"", "\\\"");
+			}
+			else{
+				strcpy(progress, "");
+				strcpy(label, "");
+			}
+
+            data
+                .append("{")
+                .append("\"id\": \"")           .append(const_cast<char*>(m_storage.record_attr[i].dev_name)).append("\",")
+                .append("\"ishavemedia\":")     .append(1, m_storage.record_attr[i].is_have_media).append(",")
+                .append("\"cd_src\":")          .append(std::to_string(m_storage.record_attr[i].media_address)).append(",")
+                .append("\"progress\":\"")      .append(progress).append("\",")
+                .append("\"burning_label\":\"") .append(label).append("\",")
+                .append("}");
+
+		}else{
+
+            data
+                .append("{")
+                .append("\"id\": \"")           .append("\",")
+                .append("\"ishavemedia\":")     .append(",")
+                .append("\"cd_src\":")          .append(",")
+                .append("\"progress\":\"")      .append("\",")
+                .append("\"burning_label\":\"") .append("\",")
+                .append("}");
+
+		}//!if (m_storage.record_attr[i].is_pluging)
+
+    }//!for (int i = 0;i<6/*RECORDERMAX*/;i++) 
+
+    data.append("],");
+
+    data.append("\"Printer\":");
+
+	char status_desc[1024];
+	memset(status_desc, 0, 1024);
+	char tmp[1024];
+	memset(tmp, 0, 1024);
+
+	strncpy(tmp, SvrPrinter::Inst().lp()->status_desc,sizeof(tmp)-1); 
+	SVRUTILS::StrRpl(tmp, status_desc, 1024, "\\", "\\\\");
+
+	memset(tmp, 0, 1024); 
+	strncpy(tmp, status_desc,1023);  
+	SVRUTILS::StrRpl(tmp, status_desc, 1024, "\r", "\\r");
+
+	memset(tmp, 0, 1024);  
+	strncpy(tmp, status_desc,1023);  
+	SVRUTILS::StrRpl(tmp, status_desc, 1024, "\n", "\\n");
+
+    data
+        .append("{")
+        .append("\"isplug\":")                  .append(1,SvrPrinter::Inst().lp()->is_pluging).append(",")
+        .append("\"ishavemedia\":")             .append(1,SvrPrinter::Inst().lp()->is_have_media).append(",")
+        .append("\"cd_src\":")                  .append(std::to_string(SvrPrinter::Inst().lp()->media_address)).append(",")
+        .append("\"tri_color_ink_level\":")     .append(std::to_string(SvrPrinter::Inst().lp()->tri_color_ink_level)).append(",")
+        .append("\"black_color_ink_level\":")   .append(std::to_string(SvrPrinter::Inst().lp()->black_color_ink_level)).append(",")
+        .append("\"status\":")                  .append(std::to_string(SvrPrinter::Inst().lp()->status)).append(",")
+        .append("\"error_state\":")             .append(std::to_string(SvrPrinter::Inst().lp()->error_state)).append(",")
+        .append("\"status_code\":")             .append(std::to_string(SvrPrinter::Inst().lp()->status_code)).append(",")
+        .append("\"status_desc\":\"")           .append(status_desc).append("\",")
+        .append("}");
+
+    CRCJson ret;
+    ret.Add("data", data);
+    _csCtrl.response(*pJson, ret);    
+
+    return 0;
 }

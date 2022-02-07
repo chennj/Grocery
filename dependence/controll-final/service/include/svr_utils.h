@@ -16,7 +16,10 @@ namespace SVRUTILS
     #define facto           98llu
     #define ROUDNUP(x,y)    (((x+(y-1))/y)*y)
 
-    /* type size */
+    //保存光盘在刻录后是否没有关闭轨道 ==1 就是没有关闭轨道
+    static char TRACK_NOT_CLOSED[MAXMEDIA]={0};  
+
+    //type size
     const unsigned long long    BD128SIZE =	(128001769472l  * facto) / 100llu;
     const unsigned long long    BD100SIZE =	(100103356416l  * facto) / 100llu;
     const unsigned long long	BD50SIZE  =	(50050629632l   * facto) / 100llu;
@@ -361,6 +364,40 @@ namespace SVRUTILS
         return ret;
     }
 
+    static int GetCdromProgress(char *dev_name,char *progress){
+
+        char ret_buf[1024];
+        char cmd_buf[1024];
+        FILE *pfile = NULL;
+        char *p =NULL;
+
+        snprintf(cmd_buf,sizeof(cmd_buf),"tail -n 1 %s/%s.log ",LOGPATH,dev_name);
+        SystemExec(cmd_buf);
+        pfile=popen(cmd_buf,"r");
+        if (pfile ==NULL)
+        {
+            return -1;
+        }
+        while(fgets(ret_buf,sizeof(ret_buf),pfile)){
+            if (progress)
+            {
+                p = strchr(ret_buf,'\n');
+                if (p)
+                {
+                    *p = '\0';
+                }
+                
+                memset(progress,0,256);     
+                strncpy(progress,ret_buf,255);   
+            }
+        }
+        if (pfile)
+        {
+            fclose(pfile);
+            pfile=NULL;
+        }
+        return 0;
+    }
 }
 
 #endif //!_SVR_UTILS_H_
