@@ -8,9 +8,9 @@
 
 MachineServer::~MachineServer()
 {
-    while(!_task_queue.empty()){
-        delete _task_queue.front();
-        _task_queue.pop();
+    while(!m_task_queue.empty()){
+        delete m_task_queue.front();
+        m_task_queue.pop();
     }
 }
 
@@ -25,19 +25,19 @@ MachineServer::Init()
     m_thread_pool.start();
 
     //连接总控,注册服务
-    _csCtrl.set_groupid("0001");
+    m_csCtrl.set_groupid("0001");
 
-    _csCtrl.connect("csCtrl","ws://192.168.137.129:4567");
+    m_csCtrl.connect("csCtrl","ws://192.168.137.129:4567");
 
-    _csCtrl.reg_msg_call("onopen", std::bind(&MachineServer::onopen_csCtrl, this, std::placeholders::_1, std::placeholders::_2));
+    m_csCtrl.reg_msg_call("onopen", std::bind(&MachineServer::onopen_csCtrl, this, std::placeholders::_1, std::placeholders::_2));
 
-    _csCtrl.reg_msg_call(CMD_ACTION, std::bind(&MachineServer::cs_machine_action, this, std::placeholders::_1, std::placeholders::_2));
+    m_csCtrl.reg_msg_call(CMD_ACTION, std::bind(&MachineServer::cs_machine_action, this, std::placeholders::_1, std::placeholders::_2));
 
     //启动时获取设备信息的任务加入本地队列，确保是第一个执行的任务
     do_action(UPDATEMIDASBOX);
 
     //设置处理来自设备的信息的回调处理函数
-    _csMachine.onmessage = [this](CRCClientCTxt* pTxtClient){
+    m_csMachine.onmessage = [this](CRCClientCTxt* pTxtClient){
 
         char* ss = pTxtClient->getRecvData();
         
@@ -81,7 +81,7 @@ MachineServer::Init()
     //1. 连接设备，断线重连
     //2. 轮询任务列表，发送状态为‘ready’的任务，并将其标记为‘sent’
     //3. 检查当前运行状态
-    _thread.Start(
+    m_thread.Start(
         //onCreate
         nullptr,
         //onRun
@@ -96,13 +96,13 @@ MachineServer::Init()
 void 
 MachineServer::Run()
 {
-     _csCtrl.run(1);
+     m_csCtrl.run(1);
 }
 
 void 
 MachineServer::Close()
 {
-    _csCtrl.close();
+    m_csCtrl.close();
 }
 
 void 
@@ -113,19 +113,19 @@ MachineServer::MachineLoop(CRCThread* pThread)
 
     CRCLog_Info("RECVBUFF Size: %d",r_size);
 
-    _csMachine.send_buff_size(s_size);
-    _csMachine.recv_buff_size(r_size);        
+    m_csMachine.send_buff_size(s_size);
+    m_csMachine.recv_buff_size(r_size);        
 
     while(pThread->isRun())
     {
         //连接有效
-        if (_csMachine.isRun())
+        if (m_csMachine.isRun())
         {
             //完成一次收发
             //-----------------------------------------------
-            _csMachine.OnRun();
+            m_csMachine.OnRun();
 
-            if (!_csMachine.isAuth()){
+            if (!m_csMachine.isAuth()){
                 continue;
             }
 
@@ -138,9 +138,9 @@ MachineServer::MachineLoop(CRCThread* pThread)
 
             //发送的任务
             //-----------------------------------------------
-            if (!_task_queue.empty())
+            if (!m_task_queue.empty())
             {
-                CRCJson* pmsg = _task_queue.front();
+                CRCJson* pmsg = m_task_queue.front();
                 {
                     //不用加锁
                     //std::lock_guard<std::mutex> lock(_task_queue_mtx);
@@ -156,7 +156,7 @@ MachineServer::MachineLoop(CRCThread* pThread)
                 //检查命令是否合法
                 std::string&& cmd = (*pmsg)("cmdTransfer");
                 
-                if (SOCKET_ERROR != _csMachine.writeText(cmd.c_str(), cmd.length())){
+                if (SOCKET_ERROR != m_csMachine.writeText(cmd.c_str(), cmd.length())){
                     pmsg->Replace("status", "sent");
                 } else {     
                     CRCLog_Error("MachineLoop COMMAND<%s> SEND FAILED",cmd.c_str());
@@ -174,7 +174,7 @@ MachineServer::MachineLoop(CRCThread* pThread)
 
         //重连设备服务器
         //-----------------------------------------------
-        if (_csMachine.connect(AF_INET,"111.111.1.100", 2020))
+        if (m_csMachine.connect(AF_INET,"111.111.1.100", 2020))
         {
             CRCLog_Info("MachineLoop::connect machine success.");
             continue;
@@ -206,14 +206,14 @@ MachineServer::cs_machine_action(CRCNetClientC* client, CRCJson& msg)
     CRCLog_Info("MachineServer::cs_machine_action msg: %s", msg.ToString().c_str());
 
     CRCJson ret;
-    if (!_thread.isRun())
+    if (!m_thread.isRun())
     {
         ret.Add("data", "equiptment client is offline");
         client->response(msg, ret);
         return;
     }
 
-    if (!_csMachine.isRun()){
+    if (!m_csMachine.isRun()){
         ret.Add("data", "equiptment server is offline");
         client->response(msg, ret);
         return;
@@ -229,6 +229,12 @@ MachineServer::cs_machine_action(CRCNetClientC* client, CRCJson& msg)
         ret.Add("data", "INVENTORY");
         client->response(msg, ret);
         return;
+    }
+
+    if (m_current_state == RETURNDISC){         //回盘状态，返回所有总控任务，进入回盘流程
+        ret.Add("data", "RETURNDISC");
+        client->response(msg, ret);
+        return;        
     }
 
     do_action(NORMAL, &msg);
@@ -250,7 +256,7 @@ MachineServer::do_action(MachineTaskType taskType, CRCJson * pJson)
             if (command.empty()){
                 CRCJson ret;
                 ret.Add("data", "cmd lost");
-                _csCtrl.response(*pJson, ret);                
+                m_csCtrl.response(*pJson, ret);                
             }
 
             CRCJson * pMsg  = new CRCJson(*pJson);
@@ -274,6 +280,13 @@ MachineServer::do_action(MachineTaskType taskType, CRCJson * pJson)
                 //获取站点信息
                 m_thread_pool.exec(std::bind(&MachineServer::query_station, this, std::placeholders::_1), pMsg);
             }
+
+            if (command.compare(RETURN_DISC) == 0){
+                //改变状态：回盘
+                m_current_state = RETURNDISC;
+                //获取站点信息
+                m_thread_pool.exec(std::bind(&MachineServer::cdrom_return_disc_manual, this, std::placeholders::_1), pMsg);
+            }
             break;
         }
         case AUTOINVENTORY:
@@ -290,12 +303,12 @@ MachineServer::OnProcess4Equipment(const char* pData, CRCClientCTxt* pTxtClient)
     CRCJson* pMsg  = nullptr;
 
     //处理设备发过来的请求
-    if (!_task_queue.empty()){
+    if (!m_task_queue.empty()){
 
         {
-            std::lock_guard<std::mutex> lock(_task_queue_mtx);
-            pMsg = _task_queue.front();
-            _task_queue.pop();
+            std::lock_guard<std::mutex> lock(m_task_queue_mtx);
+            pMsg = m_task_queue.front();
+            m_task_queue.pop();
         }
 
         RetMessage* rm = new RetMessage(*pMsg, pData, pTxtClient->getRecvLen());
@@ -346,8 +359,8 @@ MachineServer::update_storage_info()
 
     //将任务放入发送任务队列
     {
-        std::unique_lock<std::mutex> lock(_task_queue_mtx);
-        _task_queue.push(pMsg);
+        std::unique_lock<std::mutex> lock(m_task_queue_mtx);
+        m_task_queue.push(pMsg);
     }
 
     //等待结果返回
@@ -371,8 +384,8 @@ MachineServer::update_storage_info()
             CRCLog_Info("update_storeage_info find key %s", key.c_str());
             continue;
         }
-    }
-    */
+    }*/
+
     /* 放到函数里，共用
     {
         std::unique_lock<std::mutex> lock(m_result_map_mtx);
@@ -393,8 +406,8 @@ MachineServer::update_storage_info()
         }
         rm = iter->second;
         m_result_map.erase(iter);
-    }
-    */
+    }*/
+
     if (!wait_for(key, "update_eqpt_info recv timeout", rm))
     {
         return;
@@ -623,7 +636,7 @@ MachineServer::inventory(CRCJson * pJson)
     
     CRCJson ret;
     ret.Add("data", "盘点结束");
-    _csCtrl.response(*pJson, ret);    
+    m_csCtrl.response(*pJson, ret);    
 
     //释放
     delete pJson;
@@ -714,8 +727,8 @@ MachineServer::mailbox_in(CRCJson * pJson)
 
     //将任务放入发送任务队列
     {
-        std::unique_lock<std::mutex> lock(_task_queue_mtx);
-        _task_queue.push(pJson);
+        std::unique_lock<std::mutex> lock(m_task_queue_mtx);
+        m_task_queue.push(pJson);
     }
 
     CRCLog_Info("mailbox_in WAITTING msg key<%s> return ...", key.c_str());
@@ -727,7 +740,7 @@ MachineServer::mailbox_in(CRCJson * pJson)
 
     CRCJson ret;
     ret.Add("data", rm->data);
-    _csCtrl.response(rm->json, ret);    
+    m_csCtrl.response(rm->json, ret);    
 
     delete rm;
 }
@@ -750,8 +763,8 @@ MachineServer::mailbox_out(CRCJson * pJson)
 
     //将任务放入发送任务队列
     {
-        std::unique_lock<std::mutex> lock(_task_queue_mtx);
-        _task_queue.push(pJson);
+        std::unique_lock<std::mutex> lock(m_task_queue_mtx);
+        m_task_queue.push(pJson);
     }
 
     CRCLog_Info("mailbox_in WAITTING msg key<%s> return ...", key.c_str());
@@ -763,7 +776,7 @@ MachineServer::mailbox_out(CRCJson * pJson)
 
     CRCJson ret;
     ret.Add("data", rm->data);
-    _csCtrl.response(rm->json, ret);   
+    m_csCtrl.response(rm->json, ret);   
 
     delete rm;
 }
@@ -966,8 +979,8 @@ MachineServer::move_disc2eqpt(int dest_addr, int src_addr)
 
     //将任务放入发送任务队列
     {
-        std::unique_lock<std::mutex> lock(_task_queue_mtx);
-        _task_queue.push(pMsg);
+        std::unique_lock<std::mutex> lock(m_task_queue_mtx);
+        m_task_queue.push(pMsg);
     }
 
     //等待结果返回
@@ -1053,8 +1066,8 @@ MachineServer::cdrom_in(int cdrom_addr)
 
     //将任务放入发送任务队列
     {
-        std::unique_lock<std::mutex> lock(_task_queue_mtx);
-        _task_queue.push(pMsg);
+        std::unique_lock<std::mutex> lock(m_task_queue_mtx);
+        m_task_queue.push(pMsg);
     }
 
     //等待结果返回
@@ -1584,13 +1597,12 @@ MachineServer::is_blank_BD_RE(SDiskTypeInfo* info)
 int 
 MachineServer::cdrom_return_disc(int cdrom_addr)
 {
-    //组装命令
     int  ret            = -1;
     char cmd_buff[256]  = {0};
+
     /*
     sprintf(cmd_buff,"CDOU,0x%04x,\n",cdrom_addr);
     CRCLog_Info("cdrom_return_disc command: %s\n", cmd_buff);    
-
 
     for (int i=0; i<3; i++)
     {
@@ -1634,8 +1646,8 @@ MachineServer::cdrom_return_disc(int cdrom_addr)
 
     if (ret != 0){
         return ret;
-    }
-    */
+    }*/
+
     //组装命令
     memset (cmd_buff,0,sizeof(cmd_buff));
     sprintf(cmd_buff,"HIDE,0x%04x,\n",cdrom_addr);
@@ -1658,8 +1670,8 @@ MachineServer::cdrom_return_disc(int cdrom_addr)
 
     //将任务放入发送任务队列
     {
-        std::unique_lock<std::mutex> lock(_task_queue_mtx);
-        _task_queue.push(pMsg);
+        std::unique_lock<std::mutex> lock(m_task_queue_mtx);
+        m_task_queue.push(pMsg);
     }
 
     //等待结果返回
@@ -1728,28 +1740,53 @@ int
 MachineServer::query_station(CRCJson* pJson)
 {
     std::string data;
+    CRCJson jdata;
     char media_type[100];
     char media_type_str[101];
 
+    /*
     data
         .append("{")
         .append("\"MachineType\":\"").append(const_cast<char*>(m_storage.midas_box.midas_attr.box_name)).append("\",")
         .append("\"DoorStatus\":").append(1, m_storage.midas_box.door.door_flag).append(",")
         .append("\"EventCnt\":").append("1").append(",")
-        .append("\"Mag\":[");
+        .append("\"Mag\":[");*/
+
+    jdata.Add("MachineType",const_cast<char*>(m_storage.midas_box.midas_attr.box_name));
+    jdata.Add("DoorStatus",m_storage.midas_box.door.door_flag);
+    jdata.Add("EventCnt",1);
+    jdata.AddEmptySubArray("Mag");
 
     for (int i=0; i<12/*MAGSLOTMAX*/; i++)
     {
         if (m_storage.mag_slotarray[i].mag_plug == 0){
+            /*
             data
                 .append("\"MagNo\":").append(std::to_string(i)).append(",")
-                .append("\"Rfid\": ,\"unknown\":[]");
+                .append("\"Rfid\": ,\"unknown\":[]");*/
+
+            CRCJson tmpJson;
+
+            tmpJson.Add("MagNo", i);
+            tmpJson.Add("Rfid", "");
+            tmpJson.Add("unknown", "[]");
+
+            jdata["Mag"].Add(tmpJson);
+
         } else {
+            /*
             data
                 .append("{")
                 .append("\"MagNo\":").append(std::to_string(i)).append(",")
                 .append("\"Rfid\": \"").append(const_cast<char*>(m_storage.mag_slotarray[i].magazine.serial)).append("\",")
-                .append("\"Slot\":[");
+                .append("\"Slot\":[");*/
+
+            CRCJson tmpJson;
+
+            tmpJson.Add("MagNo", i);
+            tmpJson.Add("Rfid", const_cast<char*>(m_storage.mag_slotarray[i].magazine.serial));
+            tmpJson.AddEmptySubArray("Slot");
+
             for (int j=0; j<MAGITEMMAX; j++)
             {
                 memset(media_type, 0, sizeof(media_type));
@@ -1811,29 +1848,58 @@ MachineServer::query_station(CRCJson* pJson)
                 memset          (label_formatted1, 0, 256);
                 SVRUTILS::StrRpl(label_formatted2, label_formatted1, 256, "\"", "\\\"");
 
-                data
-                    .append("{")
-                    .append("\"id\":").append(std::to_string(i*MAGITEMMAX+j+1)).append(",")
+                /* 下面两种方法都只能拼接到 mediatype 就拼接不下去了，原因未知，可能是std::string的BUG
+                data.append("{")
+                    .append("\"id\":")          .append(std::to_string(i*MAGITEMMAX+j+1)).append(",")
                     .append("\"media_id\":\"")  .append(const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_id)).append("\",")
                     .append("\"cdexist\":")     .append(1, m_storage.media_attr[i*MAGITEMMAX+j].cdexist).append(",")
                     .append("\"trayexist\":")   .append(1, m_storage.media_attr[i*MAGITEMMAX+j].trayexist).append(",")
                     .append("\"ischecked\":")   .append(1, m_storage.media_attr[i*MAGITEMMAX+j].ischecked).append(",")
                     .append("\"isblank\":")     .append(1, m_storage.media_attr[i*MAGITEMMAX+j].isblank).append(",")
-                    .append("\"mediatype\":\"") .append(media_type_str).append("\",")
-                    .append("\"label\":\"")     .append(label_formatted1).append("\",")
+                    .append("\"mediatype\":\"") .append(strlen(media_type_str)==0?"none":media_type_str).append("\",")
+                    .append("\"label\":\"")     .append(strlen(label_formatted1)==0?"none":label_formatted1).append("\",")
                     .append("\"slot_status\":") .append(std::to_string(m_storage.media_attr[i*MAGITEMMAX+j].slot_status))
                     .append("}");
 
+                data +=
+                    std::string("{") +
+                    std::string("\"id\":")          + std::to_string(i*MAGITEMMAX+j+1) + "," +
+                    std::string("\"media_id\":\"")  + const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_id) + "\"," +
+                    std::string("\"cdexist\":")     + m_storage.media_attr[i*MAGITEMMAX+j].cdexist + "," +
+                    std::string("\"trayexist\":")   + m_storage.media_attr[i*MAGITEMMAX+j].trayexist + "," + 
+                    std::string("\"ischecked\":")   + m_storage.media_attr[i*MAGITEMMAX+j].ischecked + "," + 
+                    std::string("\"isblank\":")     + m_storage.media_attr[i*MAGITEMMAX+j].isblank + "," + 
+                    std::string("\"mediatype\":\"") + (strlen(media_type_str)==0?"none":media_type_str) + "\"," + 
+                    std::string("\"label\":\"")     + (strlen(label_formatted1)==0?"none":label_formatted1) + "\"," + 
+                    std::string("\"slot_status\":") + std::to_string(m_storage.media_attr[i*MAGITEMMAX+j].slot_status) + 
+                    std::string("}");*/
+
+                CRCJson tmpSubJson;
+
+                tmpSubJson.Add("id",          i*MAGITEMMAX+j+1);
+                tmpSubJson.Add("media_id",    const_cast<char*>(m_storage.media_attr[i*MAGITEMMAX+j].diskTypeInfo.media_id));
+                tmpSubJson.Add("cdexist",     m_storage.media_attr[i*MAGITEMMAX+j].cdexist);
+                tmpSubJson.Add("trayexist",   m_storage.media_attr[i*MAGITEMMAX+j].trayexist);
+                tmpSubJson.Add("ischecked",   m_storage.media_attr[i*MAGITEMMAX+j].ischecked);
+                tmpSubJson.Add("isblank",     m_storage.media_attr[i*MAGITEMMAX+j].isblank);
+                tmpSubJson.Add("mediatype",   strlen(media_type_str)==0?"none":media_type_str);
+                tmpSubJson.Add("label",       strlen(label_formatted1)==0?"none":label_formatted1);
+                tmpSubJson.Add("slot_status", m_storage.media_attr[i*MAGITEMMAX+j].slot_status);
+
+                tmpJson["Slot"].Add(tmpSubJson);
+
             }//!for (int j=0; j<MAGITEMMAX; j++)
 
-            data.append("]}");
+            //data.append("]}");
+            jdata["Mag"].Add(tmpJson);
         }
 
     }//!for (i=0; i<12/*MAGSLOTMAX*/; i++)
 
-    data
-        .append("],")
-        .append("\"Drivers\":[");
+    //data.append("],");
+
+    jdata.AddEmptySubArray("Drivers");
+
     for (int i = 0;i<6/*RECORDERMAX*/;i++)  //一般最多也就6个光驱
     {
 		if (m_storage.record_attr[i].is_pluging)
@@ -1858,33 +1924,30 @@ MachineServer::query_station(CRCJson* pJson)
 				strcpy(label, "");
 			}
 
-            data
-                .append("{")
-                .append("\"id\": \"")           .append(const_cast<char*>(m_storage.record_attr[i].dev_name)).append("\",")
-                .append("\"ishavemedia\":")     .append(1, m_storage.record_attr[i].is_have_media).append(",")
-                .append("\"cd_src\":")          .append(std::to_string(m_storage.record_attr[i].media_address)).append(",")
-                .append("\"progress\":\"")      .append(progress).append("\",")
-                .append("\"burning_label\":\"") .append(label).append("\",")
-                .append("}");
+            CRCJson tmpJson;
 
+            tmpJson.Add("id",           const_cast<char*>(m_storage.record_attr[i].dev_name));
+            tmpJson.Add("ishavemedia",  m_storage.record_attr[i].is_have_media);
+            tmpJson.Add("cd_src",       m_storage.record_attr[i].media_address);
+            tmpJson.Add("progress",     progress);
+            tmpJson.Add("burning_label",label);
+
+            jdata["Drivers"].Add(tmpJson);
 		}else{
 
-            data
-                .append("{")
-                .append("\"id\": \"")           .append("\",")
-                .append("\"ishavemedia\":")     .append(",")
-                .append("\"cd_src\":")          .append(",")
-                .append("\"progress\":\"")      .append("\",")
-                .append("\"burning_label\":\"") .append("\",")
-                .append("}");
+            CRCJson tmpJson;
+            
+            tmpJson.Add("id",           "");
+            tmpJson.Add("ishavemedia",  "");
+            tmpJson.Add("cd_src",       "");
+            tmpJson.Add("progress",     "");
+            tmpJson.Add("burning_label","");
+
+            jdata["Drivers"].Add(tmpJson);
 
 		}//!if (m_storage.record_attr[i].is_pluging)
 
     }//!for (int i = 0;i<6/*RECORDERMAX*/;i++) 
-
-    data.append("],");
-
-    data.append("\"Printer\":");
 
 	char status_desc[1024];
 	memset(status_desc, 0, 1024);
@@ -1902,22 +1965,106 @@ MachineServer::query_station(CRCJson* pJson)
 	strncpy(tmp, status_desc,1023);  
 	SVRUTILS::StrRpl(tmp, status_desc, 1024, "\n", "\\n");
 
-    data
-        .append("{")
-        .append("\"isplug\":")                  .append(1,SvrPrinter::Inst().lp()->is_pluging).append(",")
-        .append("\"ishavemedia\":")             .append(1,SvrPrinter::Inst().lp()->is_have_media).append(",")
-        .append("\"cd_src\":")                  .append(std::to_string(SvrPrinter::Inst().lp()->media_address)).append(",")
-        .append("\"tri_color_ink_level\":")     .append(std::to_string(SvrPrinter::Inst().lp()->tri_color_ink_level)).append(",")
-        .append("\"black_color_ink_level\":")   .append(std::to_string(SvrPrinter::Inst().lp()->black_color_ink_level)).append(",")
-        .append("\"status\":")                  .append(std::to_string(SvrPrinter::Inst().lp()->status)).append(",")
-        .append("\"error_state\":")             .append(std::to_string(SvrPrinter::Inst().lp()->error_state)).append(",")
-        .append("\"status_code\":")             .append(std::to_string(SvrPrinter::Inst().lp()->status_code)).append(",")
-        .append("\"status_desc\":\"")           .append(status_desc).append("\",")
-        .append("}");
+    CRCJson tmpJson;
+
+    tmpJson.Add("isplug",               SvrPrinter::Inst().lp()->is_pluging);
+    tmpJson.Add("ishavemedia",          SvrPrinter::Inst().lp()->is_have_media);
+    tmpJson.Add("cd_src",               SvrPrinter::Inst().lp()->media_address);
+    tmpJson.Add("tri_color_ink_level",  SvrPrinter::Inst().lp()->tri_color_ink_level);
+    tmpJson.Add("black_color_ink_level",SvrPrinter::Inst().lp()->black_color_ink_level);
+    tmpJson.Add("status",               SvrPrinter::Inst().lp()->status);
+    tmpJson.Add("error_state",          SvrPrinter::Inst().lp()->error_state);
+    tmpJson.Add("status_code",          SvrPrinter::Inst().lp()->status_code);
+    tmpJson.Add("status_desc","");
+
+    jdata.Add("Printer", tmpJson);
 
     CRCJson ret;
-    ret.Add("data", data);
-    _csCtrl.response(*pJson, ret);    
+    ret.Add("data", jdata.ToString());
+    m_csCtrl.response(*pJson, ret);    
 
     return 0;
+}
+
+int  
+MachineServer::cdrom_return_disc_manual(CRCJson * pJson)
+{
+    CRCLog_Info("WAITTING return disc FINISH...");
+
+	for (int i =0; i < RECORDERMAX; i++)
+	{
+		if (m_storage.record_attr[i].is_pluging && m_storage.record_attr[i].is_have_media == PRESENCE)
+		{
+			int ret = cdrom_return_disc(MIDAS_ELMADR_DT+i);
+            if (ret != 0){break;}
+		}		
+	}   
+    
+    CRCLog_Info("RETURN disc FINISH");
+
+    m_current_state = RUN;
+
+    CRCJson ret;
+    ret.Add("data", "reutrn disc finish");
+    m_csCtrl.response(*pJson, ret);   
+
+    //释放
+    delete pJson;
+
+    return 0;
+}
+
+int  
+MachineServer::mailbox_export_disc(CRCJson * pJson)
+{
+    std::string from        = "mailbox_export_disc";
+    uint32_t    fromId      = m_atomic++;
+    RetMessage* rm          = nullptr;
+
+    //组合命令
+    char cmd_buff[128]      = {0};
+    CRCJson jParam;
+    if (pJson->Get("param", jParam)){
+        sprintf(cmd_buff,"EXPO,0x%04x,\n",jParam("cdaddr"));
+    } else {
+        CRCJson ret;
+        ret.Add("data", "lost param cdaddr");
+        m_csCtrl.response(*pJson, ret);    
+        delete pJson;
+        return -1;
+    }
+    
+    //生成任务对象
+    pJson->Add("cmdTransfer",    cmd_buff);
+    pJson->Add("from",           from);
+    pJson->Add("fromId",         fromId);
+    pJson->Add("status",         "ready");
+
+    //这个key值用来在结果集中查找返回结果
+    std::string&& key = gen_key(*pJson);
+
+    //将任务放入发送任务队列
+    {
+        std::unique_lock<std::mutex> lock(m_task_queue_mtx);
+        m_task_queue.push(pJson);
+    }
+
+    CRCLog_Info("mailbox_in WAITTING msg key<%s> return ...", key.c_str());
+
+    if (!wait_for(key, "mailbox_in recv timeout", rm))
+    {
+        return;
+    }
+
+    CRCJson ret;
+    ret.Add("data", rm->data);
+    m_csCtrl.response(rm->json, ret);    
+
+    delete rm;
+}
+
+int  
+MachineServer::mailbox_import_disc(CRCJson * pJson)
+{
+
 }

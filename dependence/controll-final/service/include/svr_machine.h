@@ -35,6 +35,7 @@
 #define INVENTORYTEST               "inventory"
 #define RETURN_DISC                 "return disc"
 #define QUERY_STATION               "query station"
+#define MAILBOX_EXPORT_DISC         "mailbox export disc"
 
 #define MAILBOXIN_TRANSFER          "MLIN,0x6001,\n"
 #define MAILBOXOUT_TRANSFER         "MLOU,0x6001,\n"
@@ -47,7 +48,8 @@ public:
         EXCEPTION =-1,
         INIT = 0,           //初始
         RUN,                //正常
-        INVENTORY           //盘点
+        INVENTORY,          //盘点
+        RETURNDISC          //回盘
     };
     //finite state machine 
     typedef struct _FSM{
@@ -122,20 +124,20 @@ public:
 protected:
     //连接总控服务区的客户端
     //负责服务的注册，空闲心跳，自动重连
-    CRCNetClientC           _csCtrl;
+    CRCNetClientC           m_csCtrl;
     //连接设备服务器的客户端
     //负责服务的注册，空闲心跳，自动重连
-    CRCEasyTxtClient        _csMachine;
+    CRCEasyTxtClient        m_csMachine;
     //连接设备服务器的线程
-    CRCThread               _thread;
+    CRCThread               m_thread;
     //任务缓冲队列
-    std::queue<CRCJson*>    _task_queue;
+    std::queue<CRCJson*>    m_task_queue;
     //任务缓冲队列锁
-    std::mutex              _task_queue_mtx;
+    std::mutex              m_task_queue_mtx;
     //是否需要重新获取 MidasBox
-    bool                    _isNeedGetMidasBox = true;
+    bool                    m_isNeedGetMidasBox = true;
     //是否自动盘点
-    bool                    _isAutoInventory = true;
+    bool                    m_isAutoInventory = true;
     //任务返回结果集
     std::map<std::string, RetMessage*> m_result_map;
     //结果集操作互斥量
@@ -162,7 +164,7 @@ public:
 
     void MachineLoop(CRCThread* pThread);
 
-    inline CRCEasyTxtClient& machine(){return _csMachine;}
+    inline CRCEasyTxtClient& machine(){return m_csMachine;}
 
     //处理从at91返回的消息
     virtual void OnProcess4Equipment(const char* pData, CRCClientCTxt* pTxtClient);
@@ -224,6 +226,12 @@ protected:
     int  cdrom_return_disc();
     //站点信息
     int  query_station(CRCJson * pJson);
+    //手动回盘
+    int  cdrom_return_disc_manual(CRCJson * pJson);
+    //邮箱出盘
+    int  mailbox_export_disc(CRCJson * pJson);
+    //邮箱入盘
+    int  mailbox_import_disc(CRCJson * pJson);
 };
 
 #endif
