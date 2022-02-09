@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    子服务工具
+ * 
+ * */
 #ifndef _SVR_UTILS_H_
 #define _SVR_UTILS_H_
 

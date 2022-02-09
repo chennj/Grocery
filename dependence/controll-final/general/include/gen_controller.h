@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    总控服务器
+ * 
+ * */
 #ifndef _GEN_CONTROLLER_H_
 #define _GEN_CONTROLLER_H_
 

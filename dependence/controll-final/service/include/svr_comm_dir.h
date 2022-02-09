@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    用于目录/文件的处理
+ * 
+ * */
 #ifndef _SVR_COMM_DIR_H_
 #define _SVR_COMM_DIR_H_
 

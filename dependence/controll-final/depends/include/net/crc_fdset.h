@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    select模型的fdset封装
+ * 
+ * */
 #ifndef _CRC_FDSET_H_
 #define _CRC_FDSET_H_
 

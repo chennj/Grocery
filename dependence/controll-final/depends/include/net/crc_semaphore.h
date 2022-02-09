@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    信号量简单封装，主要用于{@CRCThread}
+ * 
+ * */
 #ifndef _CRC_SEMAPHORE_H_
 #define _CRC_SEMAPHORE_H_
 

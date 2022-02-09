@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    tcp协议的接收服务端基类
+ * 
+ * */
 #ifndef _CRC_EASY_TCP_SERVER_H_
 #define _CRC_EASY_TCP_SERVER_H_
 

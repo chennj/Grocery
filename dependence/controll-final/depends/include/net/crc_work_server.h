@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    工作线程基类
+ * 
+ * */
 #ifndef _CRC_WORK_SERVER_H_
 #define _CRC_WORK_SERVER_H_
 

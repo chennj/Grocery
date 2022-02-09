@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    tcp协议下websocket传输的连接客户端
+ * 
+ * */
 #ifndef _CRC_EASY_WEBSOCKET_CLIENT_H_
 #define _CRC_EASY_WEBSOCKET_CLIENT_H_
 

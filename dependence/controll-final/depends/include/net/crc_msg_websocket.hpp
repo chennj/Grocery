@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    websocket协议头
+ * 
+ * */
 #ifndef _CRC_WEBSOCKET_HEADER_HPP_
 #define _CRC_WEBSOCKET_HEADER_HPP_
 

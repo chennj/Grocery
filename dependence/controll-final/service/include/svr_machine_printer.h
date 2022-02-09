@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    打印机处理类
+ * 
+ * */
 #ifndef _SVR_MACHINE_PRINTER_H_
 #define _SVR_MACHINE_PRINTER_H_
 

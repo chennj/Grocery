@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    字符串比较
+ * 
+ * */
 #ifndef _CRC_KEYSTRING_HPP_
 #define _CRC_KEYSTRING_HPP_
 

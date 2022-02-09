@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    tcp协议的连接客户端基类
+ * 
+ * */
 #ifndef _CRC_EASY_TCP_CLIENT_H_
 #define _CRC_EASY_TCP_CLIENT_H_
 

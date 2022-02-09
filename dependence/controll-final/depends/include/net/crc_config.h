@@ -1,9 +1,13 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    专门用于读取配置数据，
+ * 			目前我们的配置参数主要来源于main函数的args传入
+ * 
+ * */
 #ifndef _CRC_CONFIG_H_
 #define _CRC_CONFIG_H_
-/*
-	专门用于读取配置数据
-	目前我们的配置参数主要来源于main函数的args传入
-*/
+
 #include <string>
 #include <map>
 #include "crc_log.h"

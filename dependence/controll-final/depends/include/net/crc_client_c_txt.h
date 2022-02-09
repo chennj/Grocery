@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    通用文本/字节客户端，用于各种不规则数据传输
+ * 
+ * */
 #ifndef _CRC_CLIENT_C_TXT_H_
 #define _CRC_CLIENT_C_TXT_H_
 

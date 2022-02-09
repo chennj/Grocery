@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    64编码工具
+ * 
+ * */
 #ifndef _CRC_BASE64_H_
 #define _CRC_BASE64_H_
 

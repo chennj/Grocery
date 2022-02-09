@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    tcp协议下websocket传输的接收服务端
+ * 
+ * */
 #ifndef _CRC_EASY_WEBSOCKET_SERVER_H_
 #define _CRC_EASY_WEBSOCKET_SERVER_H_
 

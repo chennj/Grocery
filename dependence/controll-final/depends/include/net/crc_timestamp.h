@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    计时器
+ * 
+ * */
 #ifndef _CRC_TIMESTAMP_H_
 #define _CRC_TIMESTAMP_H_
 

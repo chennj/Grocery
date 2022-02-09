@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    字节流读写
+ * 
+ * */
 #ifndef _CRC_MSG_STREAM_H_
 #define _CRC_MSG_STREAM_H_
 

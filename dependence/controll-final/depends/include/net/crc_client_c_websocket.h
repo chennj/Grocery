@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjinag
+ * desc:    websocket客户端
+ * 
+ * */
 #ifndef _CRC_CLIENT_C_WEBSOCKET_H_
 #define _CRC_CLIENT_C_WEBSOCKET_H_
 

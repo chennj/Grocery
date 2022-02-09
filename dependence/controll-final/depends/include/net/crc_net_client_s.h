@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    用于{@CRCNetServer}的websocket客户端
+ * 
+ * */
 #ifndef _CRC_NET_CLIENT_S_H_
 #define _CRC_NET_CLIENT_S_H_
 

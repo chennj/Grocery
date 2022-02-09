@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    线程池
+ * 
+ * */
 #ifndef _CRC_THREAD_POOL_H_
 #define _CRC_THREAD_POOL_H_
 
@@ -85,6 +91,7 @@ public:
 	//启动线程池
 	bool start();
 
+	//停止线程池
 	void stop();
 
 protected:
@@ -104,14 +111,19 @@ protected:
 	//工作线程
 	std::vector<std::thread*>	m_pThreads;
 
+	//任务队列互斥变量
 	std::mutex m_mutex;
 
+	//任务等待队列条件变量
 	std::condition_variable		m_condition;
 
+	//线程池线程数
 	size_t						m_threadNum;
 
+	//是否终止执行
 	bool						m_bTerminate;
 
+	//正在运行的任务数
 	std::atomic<int>			m_atomic{ 0 };
 };
 #endif // !_CRC_THREAD_POOL_H_

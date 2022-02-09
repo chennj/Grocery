@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    线程封装
+ * 
+ * */
 #ifndef _CRC_THREAD_H_
 #define _CRC_THREAD_H_
 

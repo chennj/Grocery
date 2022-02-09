@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    使用websocket客户端的连接客户端处理器
+ * 
+ * */
 #ifndef _CRC_NET_CLIENT_C_H_
 #define _CRC_NET_CLIENT_C_H_
 

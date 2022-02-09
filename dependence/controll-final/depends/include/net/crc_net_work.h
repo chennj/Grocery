@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    用于配置网络环境
+ * 
+ * */
 #ifndef _CRC_NET_WORK_H_
 #define _CRC_NET_WORK_H_
 

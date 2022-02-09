@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    使用epoll模型的接收服务端
+ * 
+ * */
 #ifndef _CRC_EASY_EPOLL_SERVER_H_
 #define _CRC_EASY_EPOLL_SERVER_H_
 

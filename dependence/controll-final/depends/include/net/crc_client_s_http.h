@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    服务器端http客户端：用于服务器接收连接
+ * 
+ * */
 #ifndef _CRC_CLIENT_S_HTTP_H_
 #define _CRC_CLIENT_S_HTTP_H_
 

@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    光驱结构类
+ * 
+ * */
 #ifndef _SVR_MACHINE_RECORDER_H_
 #define _SVR_MACHINE_RECORDER_H_
 

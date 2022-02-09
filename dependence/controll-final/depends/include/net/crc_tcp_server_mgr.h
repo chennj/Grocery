@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    接收服务端跨平台兼容
+ * 
+ * */
 #ifndef _CRC_TCP_SERVER_MGR_H_
 #define _CRC_TCP_SERVER_MGR_H_
 

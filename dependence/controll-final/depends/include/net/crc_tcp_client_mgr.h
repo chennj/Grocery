@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    连接客户端跨平台兼容
+ * 
+ * */
 #ifndef _CRC_TCP_CLIENT_MGR_H_
 #define _CRC_TCP_CLIENT_MGR_H_
 

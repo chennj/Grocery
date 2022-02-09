@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    用于http协议的键值对参数
+ * 
+ * */
 #ifndef _CRC_SPLITSTRING_HPP_
 #define _CRC_SPLITSTRING_HPP_
 

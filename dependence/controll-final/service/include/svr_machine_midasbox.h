@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    设备数据类
+ * 
+ * */
 #ifndef _SVR_MACHINE_MIDASBOX_H_
 #define _SVR_MACHINE_MIDASBOX_H_
 

@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    客户端基类
+ * 
+ * */
 #ifndef _CRC_Client_H_
 #define _CRC_Client_H_
 

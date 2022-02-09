@@ -259,6 +259,8 @@ MachineServer::do_action(MachineTaskType taskType, CRCJson * pJson)
                 m_csCtrl.response(*pJson, ret);                
             }
 
+            //复制pJson
+            //因为传递给线程后pJson指向的数据会被释放,所以需要复制一份
             CRCJson * pMsg  = new CRCJson(*pJson);
 
             if (command.compare(MAILBOXIN) == 0){
@@ -286,6 +288,26 @@ MachineServer::do_action(MachineTaskType taskType, CRCJson * pJson)
                 m_current_state = RETURNDISC;
                 //获取站点信息
                 m_thread_pool.exec(std::bind(&MachineServer::cdrom_return_disc_manual, this, std::placeholders::_1), pMsg);
+            }
+
+            if (command.compare(MAILBOX_EXPORT_DISC) == 0){
+                //邮箱出盘
+                m_thread_pool.exec(std::bind(&MachineServer::mailbox_export_disc_manual, this, std::placeholders::_1), pMsg);
+            }
+
+            if (command.compare(MAILBOX_IMPORT_DISC) == 0){
+                //邮箱入盘
+                m_thread_pool.exec(std::bind(&MachineServer::mailbox_import_disc_manual, this, std::placeholders::_1), pMsg);
+            }
+
+            if (command.compare(PRINTER_EXPORT_DISC) == 0){
+                //打印机回盘
+                m_thread_pool.exec(std::bind(&MachineServer::printer_export_disc_manual, this, std::placeholders::_1), pMsg);
+            }
+
+            if (command.compare(PRINTER_IMPORT_DISC) == 0){
+                //光盘送打印机
+                m_thread_pool.exec(std::bind(&MachineServer::printer_import_disc_manual, this, std::placeholders::_1), pMsg);
             }
             break;
         }
@@ -715,6 +737,7 @@ MachineServer::mailbox_in(CRCJson * pJson)
     std::string from        = "remote_mailbox_in";
     uint32_t    fromId      = m_atomic++;
     RetMessage* rm          = nullptr;
+    CRCJson     ret;
 
     //生成任务对象
     pJson->Add("cmdTransfer",    MAILBOXIN_TRANSFER);
@@ -735,13 +758,14 @@ MachineServer::mailbox_in(CRCJson * pJson)
 
     if (!wait_for(key, "mailbox_in recv timeout", rm))
     {
+        ret.Add("data", "mailbox_in recv timeout");
+        m_csCtrl.response(rm->json, ret);    
+        delete pJson;
         return;
     }
 
-    CRCJson ret;
     ret.Add("data", rm->data);
     m_csCtrl.response(rm->json, ret);    
-
     delete rm;
 }
 
@@ -751,6 +775,7 @@ MachineServer::mailbox_out(CRCJson * pJson)
     std::string from        = "remote_mailbox_out";
     uint32_t    fromId      = m_atomic++;
     RetMessage* rm          = nullptr;
+    CRCJson     ret;    
 
     //生成任务对象
     pJson->Add("cmdTransfer",    MAILBOXOUT_TRANSFER);
@@ -771,10 +796,12 @@ MachineServer::mailbox_out(CRCJson * pJson)
 
     if (!wait_for(key, "mailbox_out recv timeout", rm))
     {
+        ret.Add("data", "mailbox_out recv timeout");
+        m_csCtrl.response(rm->json, ret);    
+        delete pJson;
         return;
     }
 
-    CRCJson ret;
     ret.Add("data", rm->data);
     m_csCtrl.response(rm->json, ret);   
 
@@ -955,7 +982,7 @@ MachineServer::trans_cdrom_status(int status, char* status_name)
 }
 
 int 
-MachineServer::move_disc2eqpt(int dest_addr, int src_addr)
+MachineServer::move_disc2eqpt(int dest_addr, int src_addr, std::string * errStr)
 {
     //定义命令
     std::string from        = "move_disc2eqpt";
@@ -988,6 +1015,10 @@ MachineServer::move_disc2eqpt(int dest_addr, int src_addr)
 
     if (!wait_for(key, "move_disc2eqpt recv timeout", rm))
     {
+        if (errStr){
+            errStr->append("move_disc2eqpt recv timeout"); 
+        }
+        delete pMsg;
         return -999;
     }
 
@@ -995,9 +1026,9 @@ MachineServer::move_disc2eqpt(int dest_addr, int src_addr)
 
     if (strncmp(rm->data,"RET,0",5) == 0)
     {
-        ret =0;
+        ret = 0;
         if(src_addr == MIDAS_ELMADR_PR){
-            //pstation_fd[0].print_attr.media_address = 0x7001;
+            SvrPrinter::Inst().lp()->media_address = MIDAS_ELMADR_PR;
             CRCLog_Info("move_disc2eqpt return disc from printer to %d ok!", dest_addr);
         }
     }
@@ -1006,7 +1037,7 @@ MachineServer::move_disc2eqpt(int dest_addr, int src_addr)
     {
         CRCLog_Info("move_disc2eqpt dests %d has disc!",dest_addr);
         if(src_addr == MIDAS_ELMADR_PR){
-            //station_fd[0].print_attr.media_address = 0x7001;
+            SvrPrinter::Inst().lp()->media_address = MIDAS_ELMADR_PR;
             CRCLog_Info("move_disc2eqpt return disc by at 91 from printer to %d ok!", dest_addr);
         }
         ret = 31;
@@ -1035,7 +1066,19 @@ MachineServer::move_disc2eqpt(int dest_addr, int src_addr)
         CRCLog_Info("move_disc2eqpt unknown error (%d->%d)!", src_addr, dest_addr);
         ret = -1;
     }
-
+	if (dest_addr == MIDAS_ELMADR_PR)
+	{
+		if (ret == 0)
+		{
+			SvrPrinter::Inst().lp()->is_have_media = 1;
+			SvrPrinter::Inst().lp()->media_address = src_addr;
+			CRCLog_Info("move_disc2eqpt move %d into printer ok!", src_addr);
+		}
+		else{
+			CRCLog_Error("move_disc2eqpt move %d into printer failed!", src_addr);
+		}
+	}
+    if (errStr){errStr->append(rm->data);}
     if (rm) {delete rm;}
     
     return ret;
@@ -1075,6 +1118,7 @@ MachineServer::cdrom_in(int cdrom_addr)
 
     if (!wait_for(key, "cdrom_in recv timeout", rm))
     {
+        delete pMsg;
         return -999;
     }
 
@@ -1678,7 +1722,8 @@ MachineServer::cdrom_return_disc(int cdrom_addr)
     CRCLog_Info("cdrom_return_disc WAITTING HIDE msg key<%s> return ...", key.c_str());
 
     if (!wait_for(key, "cdrom_return_disc recv timeout", rm))
-    {
+    {   
+        delete pMsg;
         return -999;
     }
 
@@ -2015,24 +2060,27 @@ MachineServer::cdrom_return_disc_manual(CRCJson * pJson)
 }
 
 int  
-MachineServer::mailbox_export_disc(CRCJson * pJson)
+MachineServer::mailbox_export_disc_manual(CRCJson * pJson)
 {
-    std::string from        = "mailbox_export_disc";
+    std::string from        = "mailbox_export_disc_manual";
     uint32_t    fromId      = m_atomic++;
     RetMessage* rm          = nullptr;
 
     //组合命令
     char cmd_buff[128]      = {0};
     CRCJson jParam;
-    if (pJson->Get("param", jParam)){
-        sprintf(cmd_buff,"EXPO,0x%04x,\n",jParam("cdaddr"));
+    int cdaddr              = -1;
+    if (pJson->Get("param", jParam) && jParam.Get("cdaddr",cdaddr) && cdaddr>0){
+        sprintf(cmd_buff,"EXPO,0x%04x,\n",cdaddr);
     } else {
         CRCJson ret;
-        ret.Add("data", "lost param cdaddr");
+        ret.Add("data", "lost param cdaddr or cdaddr illegal");
         m_csCtrl.response(*pJson, ret);    
         delete pJson;
         return -1;
     }
+
+    CRCLog::Info("mailbox_export_disc_manual cmd: %s",cmd_buff);
     
     //生成任务对象
     pJson->Add("cmdTransfer",    cmd_buff);
@@ -2049,11 +2097,45 @@ MachineServer::mailbox_export_disc(CRCJson * pJson)
         m_task_queue.push(pJson);
     }
 
-    CRCLog_Info("mailbox_in WAITTING msg key<%s> return ...", key.c_str());
+    CRCLog_Info("mailbox_export_disc_manual WAITTING msg key<%s> return ...", key.c_str());
 
-    if (!wait_for(key, "mailbox_in recv timeout", rm))
+    if (!wait_for(key, "mailbox_export_disc_manual recv timeout", rm))
     {
-        return;
+        return -1;
+    }
+
+    if (strncmp(rm->data,"RET,0",5) == 0)
+    //如果成功则修改m_storage的数据
+    {
+        sprintf(cmd_buff,"rm -Rf %s/%04d_*",SVRUTILS::MIRRORPATH,cdaddr);
+        SVRUTILS::SystemExec(cmd_buff);
+        //generate grep info 1:have magserial ,move to offline ,else delete it
+        if (strlen(const_cast<char*>(m_storage.mag_slotarray[(cdaddr-1)/MAGITEMMAX].magazine.serial)) >0)
+        {
+            snprintf(
+                cmd_buff,sizeof(cmd_buff),"mv  -f %s/%04d-%s.grep  %s/%04d-%s.offline",
+                SVRUTILS::DINFOPATH,
+                cdaddr,
+                m_storage.mag_slotarray[(cdaddr-1)/MAGITEMMAX].magazine.serial,
+                SVRUTILS::DINFOPATH,
+                cdaddr%MAGITEMMAX,
+                m_storage.mag_slotarray[(cdaddr-1)/MAGITEMMAX].magazine.serial);
+        }else{
+            snprintf(cmd_buff,sizeof(cmd_buff),"rm -Rf %s/%04d*",SVRUTILS::DINFOPATH,cdaddr);
+        }
+        SVRUTILS::SystemExec(cmd_buff);
+        //delete info
+        snprintf(cmd_buff,sizeof(cmd_buff),"rm -Rf %s/%04d.info",SVRUTILS::DINFOPATH,cdaddr);
+        SVRUTILS::SystemExec(cmd_buff);
+        //clear share mem status
+        memset((void*)&(m_storage.media_attr[cdaddr-1]),0,sizeof(MediaAttr));
+        //set local map remember mailbox cd_src
+        m_storage.midas_box.mailbox_slotarray[0].maibox.cd_src_addr =  cdaddr;
+        //set local madia attr
+        m_storage.media_attr[cdaddr-1].trayexist    = NOPRESENCE;
+        m_storage.media_attr[cdaddr-1].cdexist      = NOPRESENCE;
+    } else {
+        CRCLog::Error("MAILBOX EXPORT DISC FAILED: %s", rm->data);
     }
 
     CRCJson ret;
@@ -2061,10 +2143,163 @@ MachineServer::mailbox_export_disc(CRCJson * pJson)
     m_csCtrl.response(rm->json, ret);    
 
     delete rm;
+
+    return 0;
 }
 
 int  
-MachineServer::mailbox_import_disc(CRCJson * pJson)
+MachineServer::mailbox_import_disc_manual(CRCJson * pJson)
 {
+    std::string from        = "mailbox_import_disc_manual";
+    uint32_t    fromId      = m_atomic++;
+    RetMessage* rm          = nullptr;
+    CRCJson     ret;
 
+    //组合命令
+    char cmd_buff[128]      = {0};
+    int  cdaddr             = -1;
+    sprintf(cmd_buff,"HIDE,0x%04x,\n",MIDAS_ELMADR_IE);
+
+    CRCLog::Info("mailbox_import_disc_manual cmd: %s",cmd_buff);
+    
+    //生成任务对象
+    pJson->Add("cmdTransfer",    cmd_buff);
+    pJson->Add("from",           from);
+    pJson->Add("fromId",         fromId);
+    pJson->Add("status",         "ready");
+
+    //这个key值用来在结果集中查找返回结果
+    std::string&& key = gen_key(*pJson);
+
+    //将任务放入发送任务队列
+    {
+        std::unique_lock<std::mutex> lock(m_task_queue_mtx);
+        m_task_queue.push(pJson);
+    }
+
+    CRCLog_Info("mailbox_import_disc_manual WAITTING msg key<%s> return ...", key.c_str());
+
+    if (!wait_for(key, "mailbox_import_disc_manual recv timeout", rm))
+    {
+        ret.Add("data", "mailbox_import_disc_manual recv timeout");
+        m_csCtrl.response(rm->json, ret);    
+        delete pJson;
+        return -999;
+    }
+
+    if (strncmp(rm->data,"RET,0,me",8) == 0)
+    {
+        cdaddr = m_storage.midas_box.mailbox_slotarray[0].maibox.cd_src_addr;
+        m_storage.midas_box.mailbox_slotarray[0].maibox.cd_src_addr = MIDAS_ELMADR_IE;
+        //set media isexist status after mailimport
+        m_storage.media_attr[cdaddr-1].trayexist    = PRESENCE;
+        m_storage.media_attr[cdaddr-1].cdexist      = PRESENCE;
+        m_storage.media_attr[cdaddr-1].ischecked    = 0;
+        
+        ret.Add("data", "success");
+    }
+    else if (strncmp(rm->data,"RET,0,1,",8) == 0)
+    {
+        cdaddr =  m_storage.midas_box.mailbox_slotarray[0].maibox.cd_src_addr;
+        m_storage.midas_box.mailbox_slotarray[0].maibox.cd_src_addr = MIDAS_ELMADR_IE;
+        //set media isexist status after mailimport
+        m_storage.media_attr[cdaddr-1].trayexist    = 1;
+        m_storage.media_attr[cdaddr-1].cdexist      = NOPRESENCE;
+        m_storage.media_attr[cdaddr-1].ischecked    = 1;
+        m_storage.media_attr[cdaddr-1].slot_status  = 'N';  //标记为未盘点状态
+
+        ret.Add("data", "success");
+    }
+    else
+    {
+        CRCLog::Error("MAILBOX IMPORT DISC FAILED: %s", rm->data);
+        ret.Add("data", rm->data);
+    }
+
+    m_csCtrl.response(rm->json, ret);    
+    delete rm;
+
+    return 0;
+}
+
+int  
+MachineServer::printer_export_disc_manual(CRCJson * pJson)
+{
+    std::string from        = "printer_export_disc_manual";
+    uint32_t    fromId      = m_atomic++;
+    RetMessage* rm          = nullptr;
+    CRCJson     ret;
+
+    //组合命令
+    char cmd_buff[128]      = {0};
+    sprintf(cmd_buff,"PROU,0x%04x,\n",MIDAS_ELMADR_PR);
+
+    CRCLog::Info("printer_export_disc_manual cmd: %s",cmd_buff);
+
+    //生成任务对象
+    pJson->Add("cmdTransfer",    cmd_buff);
+    pJson->Add("from",           from);
+    pJson->Add("fromId",         fromId);
+    pJson->Add("status",         "ready");
+
+    //这个key值用来在结果集中查找返回结果
+    std::string&& key = gen_key(*pJson);
+
+    //将任务放入发送任务队列
+    {
+        std::unique_lock<std::mutex> lock(m_task_queue_mtx);
+        m_task_queue.push(pJson);
+    }
+
+    CRCLog_Info("printer_export_disc_manual WAITTING msg key<%s> return ...", key.c_str());
+
+    if (!wait_for(key, "printer_export_disc_manual recv timeout", rm))
+    {
+        ret.Add("data", "printer_export_disc_manual recv timeout");
+        m_csCtrl.response(*pJson, ret);    
+        delete pJson;
+        return -999;
+    }
+
+    if (strncmp(rm->data,"RET,0",5) != 0)
+    {
+        ret.Add("data", "success");
+    }else{
+        CRCLog_Error("printer_export_disc_manual failed! msg: %s\n", rm->data);
+        ret.Add("data", rm->data);
+    }
+
+    m_csCtrl.response(rm->json, ret);    
+
+    delete rm;
+
+    return 0;
+}
+
+int  
+MachineServer::printer_import_disc_manual(CRCJson * pJson)
+{
+    std::string from            = "printer_import_disc_manual";
+    uint32_t    fromId          = m_atomic++;
+    RetMessage* rm              = nullptr;
+    CRCJson     ret;
+
+    //组合命令
+    char        cmd_buff[128]   = {0};
+    CRCJson     jParam;
+    int         cdaddr          = -1;
+    std::string errStr;
+    if (pJson->Get("param", jParam) && jParam.Get("cdaddr",cdaddr) && cdaddr>0){
+        if (move_disc2eqpt(MIDAS_ELMADR_PR, cdaddr, &errStr) == 0){
+            ret.Add("data", "success");
+        } else {
+            ret.Add("data", errStr);
+        }
+    } else {
+        ret.Add("data", "lost param cdaddr or cdaddr illegal");
+    }
+
+    m_csCtrl.response(*pJson, ret);    
+    delete pJson;
+    return 0;
 }

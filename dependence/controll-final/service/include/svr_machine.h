@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    设备子服务处理器
+ * 
+ * */
 #ifndef _SVR_MACHINE_H_
 #define _SVR_MACHINE_H_
 
@@ -36,6 +42,9 @@
 #define RETURN_DISC                 "return disc"
 #define QUERY_STATION               "query station"
 #define MAILBOX_EXPORT_DISC         "mailbox export disc"
+#define MAILBOX_IMPORT_DISC         "mailbox import disc"
+#define PRINTER_EXPORT_DISC         "printer export disc"
+#define PRINTER_IMPORT_DISC         "printer import disc"
 
 #define MAILBOXIN_TRANSFER          "MLIN,0x6001,\n"
 #define MAILBOXOUT_TRANSFER         "MLOU,0x6001,\n"
@@ -43,7 +52,7 @@
 class MachineServer
 {
 public:
-    //state
+    //运行状态
     enum MachineState : int32_t{
         EXCEPTION =-1,
         INIT = 0,           //初始
@@ -51,21 +60,18 @@ public:
         INVENTORY,          //盘点
         RETURNDISC          //回盘
     };
-    //finite state machine 
-    typedef struct _FSM{
-        int StateId;
-        MachineState State;
-        std::string StateDesc;
-    } FSM;
+
     //当前状态
     volatile MachineState   m_current_state = INIT;
+
+    //任务类型
     enum MachineTaskType{
         UPDATEMIDASBOX=1,
         AUTOINVENTORY,
         NORMAL
     };
 
-    /* 光盘信息，有两部分组成，一部分从at91传来，一部分由总控通过光驱识别产生 */
+    //光盘信息，有两部分组成，一部分从at91传来，一部分由总控通过光驱识别产生
     typedef struct _MediaAttr{
         unsigned short      media_addr;
         unsigned short      slot_status;
@@ -87,7 +93,7 @@ public:
         long long	        storage_used;
         //scsi host
         char		        scsi_host[12];
-        //设备属性
+        //设备属性，从at91获得
         MidasBox            midas_box;
         //光驱属性，从at91获得
         RecordAttr          record_attr[RECORDERMAX];
@@ -99,10 +105,13 @@ public:
 
     Storage        m_storage;
 
-    typedef struct _RetMessage{
-        CRCJson             json;
-        char*               data;
-        int                 datalen;
+    //组装从客户端及at91异步返回的信息
+    typedef struct _RetMessage
+    {
+        CRCJson             json;       //来自客户端的命令数据
+        char*               data;       //从at91返回的数据
+        int                 datalen;    //从at91返回的数据长度
+
         _RetMessage(){}
         _RetMessage(_RetMessage& other){
             json = other.json;
@@ -203,7 +212,7 @@ protected:
     //翻译光驱状态
     void trans_cdrom_status(int status, char* status_name);
     //移动光盘到设备：光驱、邮箱、打印机
-    int  move_disc2eqpt(int dest_addr, int src_addr);
+    int  move_disc2eqpt(int dest_addr, int src_addr, std::string * errStr = nullptr);
     //关闭光驱
     int  cdrom_in(int cdrom_addr);
     //检测光驱与光盘
@@ -218,7 +227,7 @@ protected:
     int  xumount(char *devname,int flag,int cdrom_addr);
     //
     int  is_blank_BD_RE(SDiskTypeInfo* info);
-    //将光盘放回盘仓
+    //将光驱中光盘放回盘仓
     //0:成功，-1，失败，-2：源中无盘
     int  cdrom_return_disc(int cdrom_addr);
     //将所有光驱中的盘放回盘仓
@@ -226,12 +235,16 @@ protected:
     int  cdrom_return_disc();
     //站点信息
     int  query_station(CRCJson * pJson);
-    //手动回盘
+    //光驱手动回盘（手动）
     int  cdrom_return_disc_manual(CRCJson * pJson);
-    //邮箱出盘
-    int  mailbox_export_disc(CRCJson * pJson);
-    //邮箱入盘
-    int  mailbox_import_disc(CRCJson * pJson);
+    //邮箱出盘（手动）
+    int  mailbox_export_disc_manual(CRCJson * pJson);
+    //邮箱入盘（手动）
+    int  mailbox_import_disc_manual(CRCJson * pJson);
+    //打印机回盘（手动）
+    int  printer_export_disc_manual(CRCJson * pJson);
+    //打印机入盘（手动）
+    int  printer_import_disc_manual(CRCJson * pJson);
 };
 
 #endif

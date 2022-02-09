@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    tcp协议下文本/字节传输的连接客户端
+ * 
+ * */
 #ifndef _CRC_EASY_TXT_CLIENT_H_
 #define _CRC_EASY_TXT_CLIENT_H_
 

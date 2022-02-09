@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    结构体传输协议
+ * 
+ * */
 #ifndef _CRC_MSG_HEADER_H_
 #define _CRC_MSG_HEADER_H_
 

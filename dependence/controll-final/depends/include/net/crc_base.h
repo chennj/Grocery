@@ -1,3 +1,9 @@
+/**
+ * 
+ * author: 	chenningjiang
+ * desc: 	跨平台网络通用头文件
+ * 
+ * */
 #ifndef _CRC_BASE_H_
 #define _CRC_BASE_H_
 

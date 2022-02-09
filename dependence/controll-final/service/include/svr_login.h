@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    登录服务器（实际是一个连接客户端）
+ * 
+ * */
 #ifndef _SVR_LOGIN_H_
 #define _SVR_LOGIN_H_
 

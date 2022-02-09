@@ -1,3 +1,13 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    日志
+ * 			Info  普通信息
+ * 			Debug 调试信息，只在debug模式起作用
+ * 			Warring 警告信息
+ * 			Error 错误信息
+ * 
+ * */
 #ifndef _CRC_LOG_H_
 #define _CRC_LOG_H_
 
@@ -7,10 +17,6 @@
 
 class CRCLog
 {
-//Info  普通信息
-//Debug 调试信息，只在debug模式起作用
-//Warring 警告信息
-//Error 错误信息
 #ifdef _DEBUG
 #ifndef CRCLog_Debug
 #define CRCLog_Debug(...) 	CRCLog::Debug(__VA_ARGS__)

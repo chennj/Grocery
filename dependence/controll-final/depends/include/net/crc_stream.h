@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    字节流协议基类
+ * 
+ * */
 #ifndef _CRC_STREAM_H_
 #define _CRC_STREAM_H_
 

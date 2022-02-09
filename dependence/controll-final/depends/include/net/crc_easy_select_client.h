@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    使用select模型的连接客户端
+ * 
+ * */
 #ifndef _CRC_EASY_SELECT_CLIENT_H_
 #define _CRC_EASY_SELECT_CLIENT_H_
 

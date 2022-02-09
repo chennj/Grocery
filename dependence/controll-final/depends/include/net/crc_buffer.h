@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:	chenningjiang
+ * desc:	socket输入输出缓冲区
+ * 
+ * */
 #ifndef _CRC_BUFFER_H_
 #define _CRC_BUFFER_H_
 

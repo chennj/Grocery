@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    epoll模型的epoll封装
+ * 
+ * */
 #ifndef _CRC_EPOLL_H_
 #define _CRC_EPOLL_H_
 

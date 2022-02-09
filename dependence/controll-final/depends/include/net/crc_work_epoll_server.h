@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    接收服务端epoll模型的工作线程
+ * 
+ * */
 #ifndef _CRC_WORK_EPOLL_SERVER_H_
 #define _CRC_WORK_EPOLL_SERVER_H_
 

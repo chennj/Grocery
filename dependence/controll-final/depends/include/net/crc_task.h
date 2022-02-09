@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    用于{@CRCLog}的异步任务服务器
+ * 
+ * */
 #ifndef _CRC_TASK_H_
 #define _CRC_TASK_H_
 

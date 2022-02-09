@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    http客户端
+ * 
+ * */
 #ifndef _CRC_CLIENT_C_HTTP_H_
 #define _CRC_CLIENT_C_HTTP_H_
 

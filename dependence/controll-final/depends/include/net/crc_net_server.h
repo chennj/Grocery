@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    websocket协议的通用接收服务端
+ * 
+ * */
 #ifndef _CRC_NET_SERVER_H_
 #define _CRC_NET_SERVER_H_
 

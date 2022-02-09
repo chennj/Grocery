@@ -1,3 +1,9 @@
+/**
+ * 
+ * author:  chenningjiang
+ * desc:    连接分发处理器
+ * 
+ * */
 #ifndef _CRC_NET_TRANSFER_H_
 #define _CRC_NET_TRANSFER_H_
 
