@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="aes-file">
+      <UniqueIdentifier>{0B36086F-F702-637A-201C-51220C489808}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="aes-string">
+      <UniqueIdentifier>{626C0B71-4E24-4DBE-B72B-261AA302E8AE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="aes-string\aes-impl">
+      <UniqueIdentifier>{89DCDF24-F53D-BD32-7EAB-03E5EA0BF4F1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="aes-string\aes-impl\structs">
+      <UniqueIdentifier>{D0E4FAE6-3CF2-28CD-C5D8-24B831E5F483}</UniqueIdentifier>
+    </Filter>
     <Filter Include="algorithm">
       <UniqueIdentifier>{ECB2EEC4-581D-A33B-A15B-54E10D058190}</UniqueIdentifier>
     </Filter>
@@ -13,14 +25,38 @@
     <Filter Include="common">
       <UniqueIdentifier>{AEFEE3F6-9AA0-0ECD-835B-22216F9C951D}</UniqueIdentifier>
     </Filter>
+    <Filter Include="crc_electric_disk">
+      <UniqueIdentifier>{919DA675-FDB3-A40B-462B-302DB2807593}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="crc_transfer_file">
+      <UniqueIdentifier>{80DE70C0-ECF4-6E56-356C-FA77A1C13FDE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="crc_transfer_file\crc_client">
+      <UniqueIdentifier>{05C3BCE7-F17D-AC93-9A35-25DE86CFF623}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="crc_transfer_file\crc_server">
+      <UniqueIdentifier>{1DD8950C-0993-85B8-B24A-FE029EE4CF48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="filescan-c11">
+      <UniqueIdentifier>{FC84AB06-E8E7-3AAB-916D-73617DAF062E}</UniqueIdentifier>
+    </Filter>
     <Filter Include="skill">
       <UniqueIdentifier>{A47B5C10-1090-84C1-D911-282145E580F2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="threadpool">
-      <UniqueIdentifier>{18cc4c3a-89df-443a-a6b5-ca2ad7d064bb}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\aes-string\aes-impl\aes128.h">
+      <Filter>aes-string\aes-impl</Filter>
+    </ClInclude>
+    <ClInclude Include="src\aes-string\aes-impl\aes_traits.h">
+      <Filter>aes-string\aes-impl</Filter>
+    </ClInclude>
+    <ClInclude Include="src\aes-string\aes-impl\aes_transformations.h">
+      <Filter>aes-string\aes-impl</Filter>
+    </ClInclude>
+    <ClInclude Include="src\aes-string\aes-impl\structs\matrix.h">
+      <Filter>aes-string\aes-impl\structs</Filter>
+    </ClInclude>
     <ClInclude Include="src\algorithm\DP\Solution.h">
       <Filter>algorithm\DP</Filter>
     </ClInclude>
@@ -30,23 +66,77 @@
     <ClInclude Include="src\common\Base.h">
       <Filter>common</Filter>
     </ClInclude>
+    <ClInclude Include="src\crc_electric_disk\crc_tools_serial.h">
+      <Filter>crc_electric_disk</Filter>
+    </ClInclude>
+    <ClInclude Include="src\crc_transfer_file\crc_client\crc_transfer_file_client.h">
+      <Filter>crc_transfer_file\crc_client</Filter>
+    </ClInclude>
+    <ClInclude Include="src\crc_transfer_file\crc_server\crc_transfer_file_server.h">
+      <Filter>crc_transfer_file\crc_server</Filter>
+    </ClInclude>
+    <ClInclude Include="src\filescan-c11\cksum.h">
+      <Filter>filescan-c11</Filter>
+    </ClInclude>
+    <ClInclude Include="src\filescan-c11\scanfile_threads.h">
+      <Filter>filescan-c11</Filter>
+    </ClInclude>
+    <ClInclude Include="src\filescan-c11\scanfile_threads_1.h">
+      <Filter>filescan-c11</Filter>
+    </ClInclude>
     <ClInclude Include="src\skill\Skill.h">
       <Filter>skill</Filter>
     </ClInclude>
-    <ClInclude Include="..\dependence\tools\threadpool\CRCThreadPool.h">
-      <Filter>threadpool</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\aes-file\decrypt.cpp">
+      <Filter>aes-file</Filter>
+    </ClCompile>
+    <ClCompile Include="src\aes-file\encrypt.cpp">
+      <Filter>aes-file</Filter>
+    </ClCompile>
+    <ClCompile Include="src\aes-string\main.cpp">
+      <Filter>aes-string</Filter>
+    </ClCompile>
     <ClCompile Include="src\algorithm\DP\Solution.cpp">
       <Filter>algorithm\DP</Filter>
     </ClCompile>
     <ClCompile Include="src\algorithm\b-tree\BTree.cpp">
       <Filter>algorithm\b-tree</Filter>
     </ClCompile>
-    <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="..\dependence\tools\threadpool\CRCThreadPool.cpp">
-      <Filter>threadpool</Filter>
+    <ClCompile Include="src\crc_electric_disk\crc_tools_hdd.cpp">
+      <Filter>crc_electric_disk</Filter>
     </ClCompile>
+    <ClCompile Include="src\crc_transfer_file\crc_client\crc_transfer_file_client.cpp">
+      <Filter>crc_transfer_file\crc_client</Filter>
+    </ClCompile>
+    <ClCompile Include="src\crc_transfer_file\crc_client\main.cpp">
+      <Filter>crc_transfer_file\crc_client</Filter>
+    </ClCompile>
+    <ClCompile Include="src\crc_transfer_file\crc_server\crc_transfer_file_server.cpp">
+      <Filter>crc_transfer_file\crc_server</Filter>
+    </ClCompile>
+    <ClCompile Include="src\crc_transfer_file\crc_server\main.cpp">
+      <Filter>crc_transfer_file\crc_server</Filter>
+    </ClCompile>
+    <ClCompile Include="src\filescan-c11\main.cpp">
+      <Filter>filescan-c11</Filter>
+    </ClCompile>
+    <ClCompile Include="src\filescan-c11\scanfile_recursion.cpp">
+      <Filter>filescan-c11</Filter>
+    </ClCompile>
+    <ClCompile Include="src\filescan-c11\scanfile_recursion_no.cpp">
+      <Filter>filescan-c11</Filter>
+    </ClCompile>
+    <ClCompile Include="src\filescan-c11\scanfile_threads.cpp">
+      <Filter>filescan-c11</Filter>
+    </ClCompile>
+    <ClCompile Include="src\filescan-c11\scanfile_threads_1.cpp">
+      <Filter>filescan-c11</Filter>
+    </ClCompile>
+    <ClCompile Include="src\filescan-c11\scanfile_threads_1_main.cpp">
+      <Filter>filescan-c11</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp" />
   </ItemGroup>
 </Project>

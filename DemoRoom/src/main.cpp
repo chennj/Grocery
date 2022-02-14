@@ -2,7 +2,7 @@
 #include "algorithm/DP/Solution.h"
 #include <Windows.h>
 
-#define THREADPOOL 1
+#define THREADPOOL 0
 #if		THREADPOOL	//线程池
 #include "../../dependence/tools/threadpool/CRCThreadPool.h"
 
@@ -526,6 +526,8 @@ void print_is_same() {
 	std::cout << std::is_same<T1, T2>() << '\n';
 };
 
+#define CPP_INTERVIEW 1
+
 int main()
 {
 #if 0 //算法实验
@@ -795,5 +797,10 @@ int main()
 	test2();
 	std::cout << "异步线程池测试：象函数的绑定 -------------------" << std::endl;
 	test3();
+#endif
+
+#if CPP_INTERVIEW
+	std::cout << 25u - 50 << std::endl;
+	return 0;
 #endif
 }

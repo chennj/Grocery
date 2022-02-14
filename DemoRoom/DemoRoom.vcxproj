@@ -90,8 +90,6 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -113,8 +111,6 @@
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Dist|x64'">
@@ -136,22 +132,50 @@
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\dependence\tools\threadpool\CRCThreadPool.h" />
+    <ClInclude Include="src\aes-string\aes-impl\aes128.h" />
+    <ClInclude Include="src\aes-string\aes-impl\aes_traits.h" />
+    <ClInclude Include="src\aes-string\aes-impl\aes_transformations.h" />
+    <ClInclude Include="src\aes-string\aes-impl\structs\matrix.h" />
     <ClInclude Include="src\algorithm\DP\Solution.h" />
     <ClInclude Include="src\algorithm\b-tree\BTree.h" />
     <ClInclude Include="src\common\Base.h" />
+    <ClInclude Include="src\crc_electric_disk\crc_tools_serial.h" />
+    <ClInclude Include="src\crc_transfer_file\crc_client\crc_transfer_file_client.h" />
+    <ClInclude Include="src\crc_transfer_file\crc_server\crc_transfer_file_server.h" />
+    <ClInclude Include="src\filescan-c11\cksum.h" />
+    <ClInclude Include="src\filescan-c11\scanfile_threads.h" />
+    <ClInclude Include="src\filescan-c11\scanfile_threads_1.h" />
     <ClInclude Include="src\skill\Skill.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\dependence\tools\threadpool\CRCThreadPool.cpp" />
+    <ClCompile Include="src\aes-file\decrypt.cpp" />
+    <ClCompile Include="src\aes-file\encrypt.cpp" />
+    <ClCompile Include="src\aes-string\main.cpp" />
     <ClCompile Include="src\algorithm\DP\Solution.cpp" />
     <ClCompile Include="src\algorithm\b-tree\BTree.cpp" />
-    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\crc_electric_disk\crc_tools_hdd.cpp" />
+    <ClCompile Include="src\crc_transfer_file\crc_client\crc_transfer_file_client.cpp" />
+    <ClCompile Include="src\crc_transfer_file\crc_client\main.cpp">
+      <ObjectFileName>$(IntDir)\main1.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="src\crc_transfer_file\crc_server\crc_transfer_file_server.cpp" />
+    <ClCompile Include="src\crc_transfer_file\crc_server\main.cpp">
+      <ObjectFileName>$(IntDir)\main2.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="src\filescan-c11\main.cpp">
+      <ObjectFileName>$(IntDir)\main3.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="src\filescan-c11\scanfile_recursion.cpp" />
+    <ClCompile Include="src\filescan-c11\scanfile_recursion_no.cpp" />
+    <ClCompile Include="src\filescan-c11\scanfile_threads.cpp" />
+    <ClCompile Include="src\filescan-c11\scanfile_threads_1.cpp" />
+    <ClCompile Include="src\filescan-c11\scanfile_threads_1_main.cpp" />
+    <ClCompile Include="src\main.cpp">
+      <ObjectFileName>$(IntDir)\main4.obj</ObjectFileName>
+    </ClCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
