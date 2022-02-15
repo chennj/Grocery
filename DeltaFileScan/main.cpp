@@ -1,4 +1,4 @@
-/***************************************************** 
+﻿/***************************************************** 
 ** Name         : main.cpp
 ** Author       : cnj
 ** Version      : 1.0 
@@ -11,6 +11,7 @@
 #include <chrono>
 #include <algorithm>
 
+void AppendSuffix(string & fileName);
 int main(int argc, char* argv[])
 {
 	//设置运行日志名称
@@ -31,31 +32,29 @@ int main(int argc, char* argv[])
 	bool IS_FIRST_RUN = false;
 
 	//读取参数
-	string	SCAN_DIRECTORY	= CRCConfig::Instance().getStr("scanDir","D:\\vs2015\\Grocery");
-	string	CUR_LIST_FILE	= CRCConfig::Instance().getStr("curListFile", "");
-	string	PRE_LIST_FILE	= CRCConfig::Instance().getStr("preListFile", "");
-	size_t	THREAD_NUM		= CRCConfig::Instance().getInt("threadNum", 4);
-	size_t	SEPRARTE_SIZE	= CRCConfig::Instance().getInt("seprarteSize", 128);
-	size_t	DELAY_TIME		= CRCConfig::Instance().getInt("timer", 0);
+	string	SCAN_DIRECTORY		= CRCConfig::Instance().getStr("scanDir","D:\\源码");
+	string	TARGET_DIRECTORY	= CRCConfig::Instance().getStr("scanDir", "");
+	string	CUR_LIST_FILE		= CRCConfig::Instance().getStr("curListFile", "");
+	string	PRE_LIST_FILE		= CRCConfig::Instance().getStr("preListFile", "");
+	size_t	THREAD_NUM			= CRCConfig::Instance().getInt("threadNum", 3);
+	size_t	SEPRARTE_SIZE		= CRCConfig::Instance().getInt("seprarteSize", 128);
+	size_t	DELAY_TIME			= CRCConfig::Instance().getInt("timer", 0);
 
 	//文件列表的文件数按给定尺寸分割
 	unsigned long long SEPRARTE_SIZE_BYTE = SEPRARTE_SIZE * 1024 * 1024 * 1024;
 	//扫描文件前缀
-	string	scanFilePre		= "MidasFullFileList-";
+	string	scanFilePre		= "MidasFullFileList";
 	//增量文件前缀
-	string	deltaFilePre	= "MidasDeltaFileList-";
+	string	deltaFilePre	= "MidasDeltaFileList";
 
 	//实例扫描
 	CRCScanner Scanner(THREAD_NUM);
 
 	//检查 CUR_FILE_LIST
 	if (CUR_LIST_FILE.empty()) {	//找到当天的文件扫描列表文件
-		auto t			= std::chrono::system_clock::now();
-		auto tNow		= std::chrono::system_clock::to_time_t(t);
-		tm*  now		= std::localtime(&tNow);
-		char path[1024] = {};
-		sprintf(path, ".\\%s%d%d%d.txt", scanFilePre.c_str(), now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
-		CUR_LIST_FILE = path;
+		time_t t = time(0);
+		CUR_LIST_FILE = ".\\"+scanFilePre;
+		AppendSuffix(CUR_LIST_FILE);
 		CRCLog::Info("current file list: %s", CUR_LIST_FILE.c_str());
 	}
 
@@ -69,7 +68,7 @@ int main(int argc, char* argv[])
 	bool	cur_list_file_exist = false;
 	bool	pre_list_file_exist = false;
 	int		MaxNo		= -1;
-	string	filterName	= scanFilePre + "[0-9]+\\\.txt";
+	string	filterName	= scanFilePre + "-[0-9]+\\\.txt";
 	vector<fs::path> FullListFiles;
 	Scanner.ScanFileOfCurDir(FullListFiles, filterName);
 	if (FullListFiles.empty()) {
@@ -82,12 +81,11 @@ int main(int argc, char* argv[])
 		//}
 		
 		//找出距离当前列表文件时间最近的那个列表文件
-		int index = 0;
-		for (auto entry : FullListFiles) {
+			int index = 0;
+			for (int i = 0; i < FullListFiles.size(); i++) {
 			
-			index++;
-			CRCLog::Info("entry: %s", entry.u8string().c_str());
-			string ss  = entry.u8string();
+			CRCLog::Info("entry: %s", FullListFiles[i].u8string().c_str());
+			string ss  = FullListFiles[i].u8string();
 			if (ss.compare(CUR_LIST_FILE) == 0) {
 				cur_list_file_exist = true;
 				continue;
@@ -97,6 +95,7 @@ int main(int argc, char* argv[])
 			if (sno.empty()) { continue; }
 			if (atoi(sno.c_str()) > MaxNo) {
 				MaxNo = atoi(sno.c_str());
+				index = i;
 			}
 			CRCLog::Info("max no: %d", MaxNo);
 		}
@@ -104,7 +103,7 @@ int main(int argc, char* argv[])
 		//如果存在距离当前列表文件时间最近的列表文件
 		if (MaxNo > 0) {
 			pre_list_file_exist = true;
-			PRE_LIST_FILE = FullListFiles[--index].u8string();
+			PRE_LIST_FILE = FullListFiles[index].u8string();
 		}
 		else {
 			PRE_LIST_FILE = CUR_LIST_FILE;
@@ -130,7 +129,8 @@ int main(int argc, char* argv[])
 					ifstream fin(PRE_LIST_FILE.c_str(), ios::in | ios::binary);
 					if (fin.is_open()) {
 						CRCLog_Info("Open PRE LIST FILE %s SUCCESS", PRE_LIST_FILE.c_str());
-						int		skip = 5;
+						int		skip  = 0;
+						int		count = 0;
 						string	line;
 						while (getline(fin, line))
 						{
@@ -138,29 +138,110 @@ int main(int argc, char* argv[])
 								CRCLog::Info("%s", line.c_str());
 								continue;
 							}
-							string name	= line.substr(0, line.find_first_of(" "));
-							size_t size	= atoi(line.substr(line.find_last_of(" ") + 1, line.size()).c_str());
-							CRCLog::Info("file: %s, size: %d", name.c_str(), size);
+
+							string name	= line.substr(0, line.find_first_of("|"));
+							size_t size	= atoi(line.substr(line.find_last_of("|") + 1, line.size()).c_str());
+							//CRCLog::Info("file: %s, size: %d", name.c_str(), size);
+							if (name.empty()) {
+								continue;
+							}
+							count++;
+							//if (FullListFileMap.find(name) != FullListFileMap.end()) {
+							//	CRCLog::Info("duplicate key name: %s", name.c_str());
+							//}
 							FullListFileMap[name] = size;
 						}
-						CRCLog::Info("map size: %d", FullListFileMap.size());
+						CRCLog::Info("map size: %d, count: %d", FullListFileMap.size(), count);
+						fin.close();
 					}
 				}
-				return 0;
 			}
 		}
 
 	}
 	//----------------------------------------------------
 
+	//扫描
+	//----------------------------------------------------
+	if (!cur_list_file_exist) {
+		std::chrono::time_point<std::chrono::high_resolution_clock> begin = std::chrono::high_resolution_clock::now();
+		Scanner.ScanQuick(SCAN_DIRECTORY);
+		auto count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - begin).count() * 0.000001;
+		std::cout << "FULL SCAN Elapsed Time: " << count << "(s)" << std::endl;
+	}
+	//----------------------------------------------------
 
-	//统计所有的增量文件的文件大小
-	//如果大于128G则生成一个文件下载列表文件
+	//计算增量
+	//----------------------------------------------------
+	if (!cur_list_file_exist) {
+		return 0;
+	}
+	queue<ScanInfo*> deltaQueue;
 
-	std::chrono::time_point<std::chrono::high_resolution_clock> begin = std::chrono::high_resolution_clock::now();
-	Scanner.Scan(SCAN_DIRECTORY);
-	auto count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - begin).count() * 0.000001;
-	std::cout << "Elapsed Time: " << count << "(s)" << std::endl;
+	ifstream fin(CUR_LIST_FILE.c_str(), ios::in | ios::binary);
+	if (fin.is_open()) {
+		CRCLog_Info("Open CUR LIST FILE %s SUCCESS", CUR_LIST_FILE.c_str());
+		int		skip = 0;
+		string	line;
+		std::chrono::time_point<std::chrono::high_resolution_clock> begin = std::chrono::high_resolution_clock::now();
+		while (getline(fin, line))
+		{
+			if (skip-- > 0) {
+				CRCLog::Info("%s", line.c_str());
+				continue;
+			}
 
+			string name = line.substr(0, line.find_first_of("|"));
+			size_t size = atoi(line.substr(line.find_last_of("|") + 1, line.size()).c_str());
+			if (name.empty()) {
+				continue;
+			}
+			if (FullListFileMap.find(name) == FullListFileMap.end()) {
+				CRCLog::Info("delta file name: %s, size: %d", name.c_str(), size);
+				ScanInfo* pInfo = new ScanInfo;
+				pInfo->file_full_name = name;
+				pInfo->file_size = size;
+				deltaQueue.push(pInfo);
+				FullListFileMap[name] = size;
+			}
+		}
+		CRCLog::Info("map size: %d", FullListFileMap.size());
+		fin.close();
+		auto count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - begin).count() * 0.000001;
+		std::cout << "DELTA COMPARE Elapsed Time: " << count << "(s)" << std::endl;
+	}
+	else {
+		CRCLog::Error("EXCEPTION CUR FILE <%s> IS NOT EXISTS", CUR_LIST_FILE.c_str());
+	}
+	//----------------------------------------------------
+
+	//生成增量文件
+	//----------------------------------------------------
+	if (!deltaQueue.empty())
+	{
+		string fileName = deltaFilePre;
+		AppendSuffix(fileName);
+		ofstream deltaFile;
+		deltaFile.open(fileName.c_str());
+		while(!deltaQueue.empty()){
+			ScanInfo* entry = deltaQueue.front();
+			deltaFile
+				<< entry->file_full_name << "|"
+				<< entry->file_size
+				<< endl;
+			deltaQueue.pop();
+			delete entry;
+		}
+	}
+	//----------------------------------------------------
     return 0;
+}
+
+void AppendSuffix(string & fileName)
+{
+	time_t t = time(0);
+	char tmp[32] = { 0 };
+	strftime(tmp, sizeof(tmp), "-%Y%m%d", localtime(&t));
+	fileName.append(tmp);
+	fileName.append(".txt");
 }

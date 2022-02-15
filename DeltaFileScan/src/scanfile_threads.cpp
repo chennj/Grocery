@@ -12,7 +12,7 @@ CRCScanner::CRCScanner() : m_scan_count(0), m_wait(0), m_fsscan_done(false), m_f
 	if (m_num_threads < 3) {
 		m_num_threads = 3;
 	}
-	cout << "Scan Thread Amount: " << m_num_threads << endl;
+	CRCLog::Info("Scan Thread Amount: %d", m_num_threads);
 }
 
 CRCScanner::CRCScanner(int _num_threads)
@@ -22,7 +22,7 @@ CRCScanner::CRCScanner(int _num_threads)
 {
 	m_total_size = 0;
 	m_total_file = 0;
-	cout << "Scan Thread Amount: " << m_num_threads << endl;
+	CRCLog::Info("Scan Thread Amount: %d", m_num_threads);
 }
 
 void
@@ -30,7 +30,7 @@ CRCScanner::SetNeedCRC(bool need)
 {
 	m_need_crc = need;
 	if (!m_need_crc) {
-		cout << "No Calculate CRC32" << endl;
+		CRCLog::Info("No Calculate CRC32");
 	}
 }
 
@@ -49,10 +49,35 @@ CRCScanner::ScanFile(fs::path& path)
 		m_total_size += size;
 		m_total_file++;
 		m_outfile
-			<< path.parent_path() << "\\" << path.filename() << " "
-			<< string(tmp) << " "
+			<< path.parent_path() << "\\" << path.filename() << "|"
+			<< string(tmp) << "|"
 			<< size
 			<< endl;
+		m_scan_count++;
+		lock.unlock();
+		if (m_scan_count % 100 == 0) {
+			std::cout << m_scan_count << std::endl;
+		}
+		else {
+			std::cout << ".";
+		}
+	}
+}
+
+void CRCScanner::ScanFileQuick(fs::path & path)
+{
+	ifstream file(path.c_str(), ios::in | ios::binary);
+	if (file.is_open())
+	{
+		ScanInfo* pInfo = new ScanInfo;
+		pInfo->update_time = GetFileUpdateTime(path);
+		pInfo->file_size = ComputeFileSize(path);
+		pInfo->file_dir = path.parent_path();
+		pInfo->file_name = path.filename();
+		unique_lock<mutex> lock(m_mtx_info);
+		m_total_size += pInfo->file_size;
+		m_total_file++;
+		m_scan_infos.push(pInfo);
 		m_scan_count++;
 		lock.unlock();
 		if (m_scan_count % 100 == 0) {
@@ -68,65 +93,138 @@ void
 CRCScanner::ThreadOutput()
 {
 	//将内存中的结果刷新到文件
-	ofstream outfile;
-	outfile.open("./filelist.txt");
+	time_t t = time(0);
+	m_source_dir = "MidasFullFileList";
+	char tmp[32] = { 0 };
+	strftime(tmp, sizeof(tmp), "-%Y%m%d", localtime(&t));
+	m_source_dir.append(tmp);
+	m_source_dir.append(".txt");
 
-	while (!m_fsoutput_done || !m_scan_infos.empty()) {
+	m_outfile.open(m_source_dir.c_str());
+
+	while (m_wait < m_num_threads || !m_scan_infos.empty()) {
 		unique_lock<mutex> lock(m_mtx_info);
 		if (m_scan_infos.empty()) {
 			lock.unlock();
 			continue;
 		}
 		ScanInfo* pInfo = m_scan_infos.front();
-		outfile
-			<< pInfo->file_attr << " "
-			<< pInfo->file_dir << "/" << pInfo->file_name << " "
-			<< pInfo->file_size << " "
-			<< pInfo->file_crc << " "
-			<< asctime(localtime(&pInfo->update_time))
+		char tmp[32] = { 0 };
+		strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", localtime(&pInfo->update_time));
+		tmp[sizeof(tmp) - 2] = '\0';	//去掉回车\r
+		m_outfile
+			<< pInfo->file_dir << "/" << pInfo->file_name << "|"
+			<< string(tmp) << "|"
+			<< pInfo->file_size
 			<< endl;
 		m_scan_infos.pop();
 		delete pInfo;
 		lock.unlock();
 	}
-	outfile.close();
+	m_outfile.close();
 }
 
-void
-CRCScanner::Output()
+bool CRCScanner::Get(fs::path & path)
 {
-	ofstream outfile;
-	outfile.open("filelist.txt");
+	std::unique_lock<std::mutex> lock(m_mtx_file);
 
-	int queue_size = m_scan_infos.size();
-	for (int i = 0; i < queue_size; i++) {
-		ScanInfo* pInfo = m_scan_infos.front();
-		outfile
-			<< pInfo->file_attr << " "
-			<< pInfo->file_dir << "/" << pInfo->file_name << " "
-			<< pInfo->file_size << " "
-			<< pInfo->file_crc << " "
-			<< asctime(localtime(&pInfo->update_time))
-			<< endl;
-		m_scan_infos.pop();
-		delete pInfo;
+	if (m_files.empty()) {
+		m_cond.wait(lock, [this] {return m_bTerminate || !m_files.empty(); });
 	}
-	outfile.close();
-}
 
-void
-CRCScanner::ThreadScan()
-{
-	while (!m_fsscan_done || !m_files.empty()) {
-		unique_lock<mutex> lock(m_mtx_file);
-		if (m_files.empty()) {
-			lock.unlock();
-			continue;
-		}
-		fs::path path = m_files.front();
+	if (m_bTerminate) return false;
+
+	if (!m_files.empty())
+	{
+		path = move(m_files.front());
 		m_files.pop();
-		lock.unlock();
-		ScanFile(path);
+		return true;
+	}
+
+	return false;
+}
+
+bool CRCScanner::WaitForAllDone(int millsecond)
+{
+	std::unique_lock<std::mutex> lock(m_mtx_file);
+
+	if (m_files.empty()) {
+		return true;
+	}
+
+	if (millsecond < 0) {
+		m_cond.wait(lock, [this] {return m_files.empty(); });
+		return true;
+	}
+	else {
+		return m_cond.wait_for(lock, std::chrono::milliseconds(millsecond), [this] {return m_files.empty(); });
+	}
+}
+
+void CRCScanner::Stop()
+{
+	{
+		std::unique_lock<std::mutex> lock(m_mtx_file);
+		m_bTerminate = true;
+		m_cond.notify_all();
+	}
+
+	for (size_t i = 0; i < m_thread_pool.size(); i++)
+	{
+		if (m_thread_pool[i]->joinable())
+		{
+			m_thread_pool[i]->join();
+		}
+		delete m_thread_pool[i];
+		m_thread_pool[i] = NULL;
+	}
+
+	std::unique_lock<std::mutex> lock(m_mtx_file);
+	m_thread_pool.clear();
+}
+
+void
+CRCScanner::ThreadScan(bool isQuick)
+{
+	//while (!m_fsscan_done || !m_files.empty()) {
+	//	unique_lock<mutex> lock(m_mtx_file);
+	//	if (m_files.empty()) {
+	//		lock.unlock();
+	//		continue;
+	//	}
+	//	fs::path path = m_files.front();
+	//	m_files.pop();
+	//	lock.unlock();
+	//	if (!isQuick) {
+	//		ScanFile(path);
+	//	}
+	//	else {
+	//		ScanFileQuick(path);
+	//	}
+	//}
+	//m_wait++;
+
+	while (!m_bTerminate) 
+	{
+		fs::path path;
+		bool ok = Get(path);
+		if (ok) {
+			++m_atomic;
+			if (!isQuick) {
+				ScanFile(path);
+			}
+			else {
+				ScanFileQuick(path);
+			}
+			--m_atomic;
+
+			std::unique_lock<std::mutex> lock(m_mtx_file);
+			if (m_atomic == 0 && m_files.empty())
+			{
+				//通知 waitforalldone
+				m_cond.notify_all();
+			}
+		}
 	}
 	m_wait++;
 }
@@ -134,20 +232,20 @@ CRCScanner::ThreadScan()
 void
 CRCScanner::Scan(const string& path)
 {
-	std::cout << "Scan Start " << std::endl;
+	CRCLog::Info("Scan Start ");
 
 	time_t t = time(0);
 	string filename = "MidasFullFileList";
 	char tmp[32] = { 0 };
 	strftime(tmp, sizeof(tmp), "-%Y%m%d", localtime(&t));
+	tmp[sizeof(tmp)-2] = '\0';
 	filename.append(tmp);
 	filename.append(".txt");
 
 	m_outfile.open(filename.c_str());
 
-	vector<thread*> thread_pool;
 	for (unsigned int i = 0; i < m_num_threads; i++) {
-		thread_pool.push_back(new thread(&CRCScanner::ThreadScan, this));
+		m_thread_pool.push_back(new thread(&CRCScanner::ThreadScan, this, false));
 	}
 
 	//一边扫描一边写文件
@@ -156,6 +254,9 @@ CRCScanner::Scan(const string& path)
 
 	ScanDirectory(path);
 	m_fsscan_done = true;
+
+	WaitForAllDone();
+	Stop();
 
 	//如果使用静态编译，并且线程结束太快，则运行下面的程序
 	//则会发生段越界，gcc7的bug
@@ -166,40 +267,94 @@ CRCScanner::Scan(const string& path)
 	//	}
 	//}
 
-	while (m_wait < m_num_threads) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(5));
-	}
+	//while (m_wait < m_num_threads) {
+	//	std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	//}
 
 	m_outfile.close();
 
-	thread_pool.clear();
+	//m_thread_pool.clear();
 
 	std::cout << std::endl;
-	std::cout << "Scan Complete " << std::endl;
-	std::cout << "Scan File Amount: " << m_scan_count << std::endl;
-	std::cout << "Write File Label, Please Waiting... " << endl;
+	CRCLog::Info("Scan Complete ");
+	CRCLog::Info("Scan File Amount: %d", m_total_file);
+	//CRCLog::Info("Write File Label, Please Waiting... ");
 
-	string filestringlabel;
-	filestringlabel
-		.append(filename.substr(0, filename.size() - 4))
-		.append("\nSourceDir:").append(path);
-	{
-		stringstream ss;
-		ss << m_total_file;
-		filestringlabel
-			.append("\nTotalFilesCount:").append(ss.str());
+	//string filestringlabel;
+	//filestringlabel
+	//	.append("SourceDir:").append(path);
+	//{
+	//	stringstream ss;
+	//	ss << m_total_file;
+	//	filestringlabel
+	//		.append("\nTotalFilesCount:").append(ss.str());
+	//}
+	//{
+	//	stringstream ss;
+	//	ss << m_total_size;
+	//	filestringlabel
+	//		.append("\nTotalFileSize:").append(ss.str())
+	//		.append("\n####");
+	//}
+
+	//InsertByLineNumber(filename, filestringlabel.c_str(), 1);
+
+	//CRCLog::Info("Write File Complete. ");
+}
+
+void		
+CRCScanner::ScanQuick(const string& path)
+{
+	CRCLog::Info("Quick Scan Start ");
+
+	for (unsigned int i = 0; i < m_num_threads; i++) {
+		m_thread_pool.push_back(new thread(&CRCScanner::ThreadScan, this, true));
 	}
-	{
-		stringstream ss;
-		ss << m_total_size;
-		filestringlabel
-			.append("\nTotalFileSize:").append(ss.str())
-			.append("\n####");
+
+	ScanDirectory(path);
+	m_fsscan_done = true;
+
+	thread* p = new thread(&CRCScanner::ThreadOutput, this);
+	p->detach();
+
+	WaitForAllDone();
+	Stop();
+
+	if (p->joinable()) {
+		p->join();
 	}
 
-	InsertByLineNumber(filename, filestringlabel.c_str(), 1);
+	//while (m_wait < m_num_threads) {
+	//	std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	//}
 
-	std::cout << "Write File Complete. " << endl;
+	//m_thread_pool.clear();
+
+	std::cout << std::endl;
+	CRCLog::Info("Scan Complete ");
+	CRCLog::Info("Scan File Amount: %d", m_total_file);
+	//CRCLog::Info("Write File Label, Please Waiting... ");
+
+	//string filestringlabel;
+	//filestringlabel
+	//	.append("SourceDir:").append(path);
+	//{
+	//	stringstream ss;
+	//	ss << m_total_file;
+	//	filestringlabel
+	//		.append("\nTotalFilesCount:").append(ss.str());
+	//}
+	//{
+	//	stringstream ss;
+	//	ss << m_total_size;
+	//	filestringlabel
+	//		.append("\nTotalFileSize:").append(ss.str())
+	//		.append("\n####");
+	//}
+
+	//InsertByLineNumber(m_source_dir, filestringlabel.c_str(), 1);
+
+	//CRCLog::Info("Write File Complete. ");
 }
 
 void
@@ -235,6 +390,7 @@ CRCScanner::ScanDirectory(fs::path directory)
 			if (!fs::is_regular_file(entry.path())) continue;
 			unique_lock<mutex> lock(m_mtx_file);
 			m_files.push(entry.path());
+			m_cond.notify_one();
 		}
 	}
 }
