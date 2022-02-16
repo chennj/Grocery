@@ -6,9 +6,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\scanfile_threads.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\crc_semaphore.cpp">
       <Filter>src</Filter>
@@ -19,11 +16,11 @@
     <ClCompile Include="src\crc_thread.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\crc_scanfile_threads.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\scanfile_threads.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="src\crc_config.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -37,6 +34,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\crc_thread.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\crc_scanfile_threads.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,16 +1,16 @@
-/**
- *
- * author:  chenningjiang
- * desc:    用于{@CRCLog}的异步任务服务器
- *
- * */
+ /*****************************************************
+ ** Name         : crc_task.h
+ ** Author       : chenningjiang
+ ** Version      : 1.0
+ ** Date         : 2021-11-11
+ ** Description  : 用于@{CRCLog}的异步任务服务器
+ ******************************************************/
 #ifndef _CRC_TASK_H_
 #define _CRC_TASK_H_
 
 #include <thread>
 #include <mutex>
 #include <list>
-
 #include <functional>
 
 #include "crc_thread.h"

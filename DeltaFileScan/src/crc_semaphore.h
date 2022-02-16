@@ -1,9 +1,10 @@
-/**
- *
- * author:  chenningjiang
- * desc:    信号量简单封装，主要用于{@CRCThread}
- *
- * */
+/*****************************************************
+ ** Name         : crc_semaphore.h
+ ** Author       : chenningjiang
+ ** Version      : 1.0
+ ** Date         : 2021-11-11
+ ** Description  : 信号量简单封装，主要用于{@CRCThread}
+ ******************************************************/
 #ifndef _CRC_SEMAPHORE_H_
 #define _CRC_SEMAPHORE_H_
 

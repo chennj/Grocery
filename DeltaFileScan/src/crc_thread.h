@@ -1,9 +1,10 @@
-/**
- *
- * author:  chenningjiang
- * desc:    线程封装
- *
- * */
+/*****************************************************
+** Name         : crc_thread.h
+** Author       : chenningjiang
+** Version      : 1.0
+** Date         : 2021-11-11
+** Description  : 线程封装
+******************************************************/
 #ifndef _CRC_THREAD_H_
 #define _CRC_THREAD_H_
 

@@ -1,10 +1,10 @@
-/**
- *
- * author:  chenningjiang
- * desc:    ×¨ÃÅÓÃÓÚ¶ÁÈ¡ÅäÖÃÊı¾İ£¬
- * 			Ä¿Ç°ÎÒÃÇµÄÅäÖÃ²ÎÊıÖ÷ÒªÀ´Ô´ÓÚmainº¯ÊıµÄargs´«Èë
- *
- * */
+/*****************************************************
+   ** Name         : crc_config.h
+   ** Author       : chenningjiang
+   ** Version      : 1.0
+   ** Date         : 2021-11-11
+   ** Description  : ä¸“é—¨ç”¨äºè¯»å–é…ç½®æ•°æ®ï¼Œ
+   ******************************************************/
 #ifndef _CRC_CONFIG_H_
 #define _CRC_CONFIG_H_
 
@@ -42,15 +42,15 @@ public:
 
 	void madeCmd(char* cmd)
 	{
-		//cmdÖµ:strIP=127.0.0.1
+		//cmdå€¼:strIP=127.0.0.1
 		char* val = strchr(cmd, '=');
 		if (val)
-		{	//valÖµ:=127.0.0.1
+		{	//valå€¼:=127.0.0.1
 			*val = '\0';
-			//cmdÖµ:strIP\0
-			//valÖµ:\0127.0.0.1
+			//cmdå€¼:strIP\0
+			//valå€¼:\0127.0.0.1
 			val++;
-			//valÖµ:127.0.0.1
+			//valå€¼:127.0.0.1
 			_kv[cmd] = val;
 			CRCLog_Debug("madeCmd k<%s> v<%s>", cmd, val);
 		}
@@ -95,9 +95,9 @@ public:
 	}
 
 private:
-	//µ±Ç°³ÌĞòµÄÂ·¾¶
+	//å½“å‰ç¨‹åºçš„è·¯å¾„
 	std::string _exePath;
-	//´æ´¢´«ÈëµÄkey-valĞÍÊı¾İ
+	//å­˜å‚¨ä¼ å…¥çš„key-valå‹æ•°æ®
 	std::map<std::string, std::string> _kv;
 
 };

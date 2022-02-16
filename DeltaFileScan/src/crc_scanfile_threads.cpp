@@ -1,10 +1,11 @@
-#include "scanfile_threads.h"
+#include "crc_scanfile_threads.h"
 
 #include <iomanip>
 #include <iterator>
 #include <string.h> 
 
 static int InsertByLineNumber(string filePath, string insertContent, int insertLine, int gap = 1);
+static string show_dot;
 
 CRCScanner::CRCScanner() : m_scan_count(0), m_wait(0), m_fsscan_done(false), m_fsoutput_done(false), m_need_crc(true)
 {
@@ -54,13 +55,14 @@ CRCScanner::ScanFile(fs::path& path)
 			<< size
 			<< endl;
 		m_scan_count++;
-		lock.unlock();
 		if (m_scan_count % 100 == 0) {
-			std::cout << m_scan_count << std::endl;
+			CRCLog::Debug("%s%d", show_dot.c_str(), m_scan_count);
+			show_dot.clear();
 		}
 		else {
-			std::cout << ".";
+			show_dot.append(".");
 		}
+		lock.unlock();
 	}
 }
 
@@ -79,13 +81,14 @@ void CRCScanner::ScanFileQuick(fs::path & path)
 		m_total_file++;
 		m_scan_infos.push(pInfo);
 		m_scan_count++;
-		lock.unlock();
 		if (m_scan_count % 100 == 0) {
-			std::cout << m_scan_count << std::endl;
+			CRCLog::Debug("%s%d", show_dot.c_str(), m_scan_count);
+			show_dot.clear();
 		}
 		else {
-			std::cout << ".";
+			show_dot.append(".");
 		}
+		lock.unlock();
 	}
 }
 
@@ -94,9 +97,9 @@ CRCScanner::ThreadOutput()
 {
 	//将内存中的结果刷新到文件
 	time_t t = time(0);
-	m_source_dir = "MidasFullFileList";
+	m_source_dir = "XFullFileList";
 	char tmp[32] = { 0 };
-	strftime(tmp, sizeof(tmp), "-%Y%m%d", localtime(&t));
+	strftime(tmp, sizeof(tmp), "-%Y%m%d %H%M00", localtime(&t));
 	m_source_dir.append(tmp);
 	m_source_dir.append(".txt");
 
@@ -113,7 +116,7 @@ CRCScanner::ThreadOutput()
 		strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", localtime(&pInfo->update_time));
 		tmp[sizeof(tmp) - 2] = '\0';	//去掉回车\r
 		m_outfile
-			<< pInfo->file_dir << "/" << pInfo->file_name << "|"
+			<< pInfo->file_dir << "\\" << pInfo->file_name << "|"
 			<< string(tmp) << "|"
 			<< pInfo->file_size
 			<< endl;
@@ -235,9 +238,9 @@ CRCScanner::Scan(const string& path)
 	CRCLog::Info("Scan Start ");
 
 	time_t t = time(0);
-	string filename = "MidasFullFileList";
+	string filename = "XFullFileList";
 	char tmp[32] = { 0 };
-	strftime(tmp, sizeof(tmp), "-%Y%m%d", localtime(&t));
+	strftime(tmp, sizeof(tmp), "-%Y%m%d %H%M00", localtime(&t));
 	tmp[sizeof(tmp)-2] = '\0';
 	filename.append(tmp);
 	filename.append(".txt");

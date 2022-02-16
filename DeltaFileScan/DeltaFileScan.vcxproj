@@ -19,7 +19,7 @@
     <ClCompile Include="src\crc_semaphore.cpp" />
     <ClCompile Include="src\crc_task.cpp" />
     <ClCompile Include="src\crc_thread.cpp" />
-    <ClCompile Include="src\scanfile_threads.cpp" />
+    <ClCompile Include="src\crc_scanfile_threads.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\crc_config.h" />
@@ -27,7 +27,7 @@
     <ClInclude Include="src\crc_semaphore.h" />
     <ClInclude Include="src\crc_task.h" />
     <ClInclude Include="src\crc_thread.h" />
-    <ClInclude Include="src\scanfile_threads.h" />
+    <ClInclude Include="src\crc_scanfile_threads.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{74E32D3D-E0A3-A973-A9DE-F2F0155EEE4F}</ProjectGuid>

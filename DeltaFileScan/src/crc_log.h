@@ -1,13 +1,13 @@
-/**
- *
- * author:  chenningjiang
- * desc:    日志
- * 			Info  普通信息
- * 			Debug 调试信息，只在debug模式起作用
- * 			Warring 警告信息
- * 			Error 错误信息
- *
- * */
+/*****************************************************
+  ** Name         : crc_log.h
+  ** Author       : chenningjiang
+  ** Version      : 1.0
+  ** Date         : 2021-11-11
+  ** Description  : Info  普通信息
+  **				Debug 调试信息，只在debug模式起作用
+  **				Warring 警告信息
+  **				Error 错误信息
+  ******************************************************/
 #ifndef _CRC_LOG_H_
 #define _CRC_LOG_H_
 

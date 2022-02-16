@@ -2,11 +2,11 @@
 ** Name         : scanfile_threads.h
 ** Author       : chenningjiang
 ** Version      : 1.0
-** Date         : 2021-11-11
+** Date         : 2022-02-15
 ** Description  : 多线程文件扫描
 ******************************************************/
-#ifndef _SCANFILE_THREADS_H_
-#define _SCANFILE_THREADS_H_
+#ifndef _CRC_SCANFILE_THREADS_H_
+#define _CRC_SCANFILE_THREADS_H_
 
 #include "crc_log.h"
 
@@ -68,6 +68,8 @@ private:
 public:
 	CRCScanner();
 	CRCScanner(int _num_threads);
+
+	string		GetScanFile() { return m_source_dir; }
 
 	void        SetNeedCRC(bool need);
 	void        Scan(const string& path);
