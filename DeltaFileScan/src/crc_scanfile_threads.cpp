@@ -71,18 +71,20 @@ void CRCScanner::ScanFileQuick(fs::path & path)
 	ifstream file(path.c_str(), ios::in | ios::binary);
 	if (file.is_open())
 	{
-		ScanInfo* pInfo = new ScanInfo;
-		pInfo->update_time = GetFileUpdateTime(path);
-		pInfo->file_size = ComputeFileSize(path);
-		pInfo->file_dir = path.parent_path();
-		pInfo->file_name = path.filename();
+		ScanInfo* pInfo		= new ScanInfo;
+		pInfo->update_time	= GetFileUpdateTime(path);
+		pInfo->file_size	= ComputeFileSize(path);
+		pInfo->file_dir		= path.parent_path();
+		pInfo->file_name	= path.filename();
+
 		unique_lock<mutex> lock(m_mtx_info);
 		m_total_size += pInfo->file_size;
 		m_total_file++;
 		m_scan_infos.push(pInfo);
 		m_scan_count++;
 		if (m_scan_count % 100 == 0) {
-			CRCLog::Debug("%s%d", show_dot.c_str(), m_scan_count);
+			//CRCLog::Debug("%s%d", show_dot.c_str(), m_scan_count);
+			cout << show_dot.c_str() << m_scan_count << endl;
 			show_dot.clear();
 		}
 		else {
@@ -112,6 +114,9 @@ CRCScanner::ThreadOutput()
 			continue;
 		}
 		ScanInfo* pInfo = m_scan_infos.front();
+		m_scan_infos.pop();
+		lock.unlock();
+
 		char tmp[32] = { 0 };
 		strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", localtime(&pInfo->update_time));
 		tmp[sizeof(tmp) - 2] = '\0';	//去掉回车\r
@@ -120,9 +125,8 @@ CRCScanner::ThreadOutput()
 			<< string(tmp) << "|"
 			<< pInfo->file_size
 			<< endl;
-		m_scan_infos.pop();
-		delete pInfo;
-		lock.unlock();
+		
+		delete pInfo;		
 	}
 	m_outfile.close();
 }
@@ -278,7 +282,6 @@ CRCScanner::Scan(const string& path)
 
 	//m_thread_pool.clear();
 
-	std::cout << std::endl;
 	CRCLog::Info("Scan Complete ");
 	CRCLog::Info("Scan File Amount: %d", m_total_file);
 	//CRCLog::Info("Write File Label, Please Waiting... ");
@@ -309,6 +312,8 @@ void
 CRCScanner::ScanQuick(const string& path)
 {
 	CRCLog::Info("Quick Scan Start ");
+
+	if (!show_dot.empty()) { show_dot.clear(); }
 
 	for (unsigned int i = 0; i < m_num_threads; i++) {
 		m_thread_pool.push_back(new thread(&CRCScanner::ThreadScan, this, true));
