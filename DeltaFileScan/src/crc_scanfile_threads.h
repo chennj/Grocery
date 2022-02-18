@@ -56,6 +56,7 @@ private:
 	unsigned long long  m_total_size;
 	unsigned long       m_total_file;
 	vector<thread*>		m_thread_pool;
+	bool				m_isQuick = false;
 
 	void ThreadScan(bool isQuick = false);
 	void ScanFile(fs::path& file);
@@ -75,6 +76,7 @@ public:
 	void        Scan(const string& path);
 	void		ScanQuick(const string& path);
 	void        ScanDirectory(fs::path directory);
+	void		ScanDirectoryQuick(fs::path directory);
 	void		ScanFileOfCurDir(vector<fs::path> & outFiles, const string& _regex);
 	uintmax_t   ComputeFileSize(const fs::path& path);
 	time_t      GetFileUpdateTime(const fs::path& path);

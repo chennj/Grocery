@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	if (TEST.compare("true")) {
+	if (TEST.compare("true") == 0) {
 		DELAY_TIME = 2;								//分钟
 		SEPRARTE_SIZE_BYTE = 10 * 1024 * 1024;		//10M
 	}
@@ -300,7 +300,7 @@ int main(int argc, char* argv[])
 
 	//生成增量文件
 	//----------------------------------------------------
-	CRCLog::Info("Ready to create TEMP delta list file, SIZE: ", deltaQueue.size());
+	CRCLog::Info("Ready to create TEMP delta list file, SIZE: %d", deltaQueue.size());
 	if (!deltaQueue.empty())
 	{
 		string	fileName;
@@ -546,19 +546,19 @@ bool CheckParam()
 void Init(int argc, char* argv[])
 {
 	//读取参数
-	SCAN_DIRECTORY		= CRCConfig::Instance().getStr("scanDir", "D:\\增量扫描测试");
+	SCAN_DIRECTORY		= CRCConfig::Instance().getStr("scanDir", "D:\\书籍");
 	TARGET_DIRECTORY	= CRCConfig::Instance().getStr("targetDir", "D:\\temp");
 	CUR_LIST_FILE		= CRCConfig::Instance().getStr("curListFile", "");
 	PRE_LIST_FILE		= CRCConfig::Instance().getStr("preListFile", "");
 	THREAD_NUM			= CRCConfig::Instance().getInt("threadNum", 4);
 	SEPRARTE_SIZE		= CRCConfig::Instance().getInt("seprarteSize", 25);
 	START_DATE			= CRCConfig::Instance().getStr("scanDir", "");
-	DELAY_TIME			= CRCConfig::Instance().getInt("delay", 60);
-	TEST				= CRCConfig::Instance().getStr("test", "yes");
+	DELAY_TIME			= CRCConfig::Instance().getInt("delay", 5);
+	TEST				= CRCConfig::Instance().getStr("test", "no");
 	CYCLE				= CRCConfig::Instance().getStr("cycle", "yes");
 	
 	//计算分割尺寸
-	unsigned long long SEPRARTE_SIZE_BYTE = SEPRARTE_SIZE * 1024 * 1024 * 1024;
+	SEPRARTE_SIZE_BYTE	= SEPRARTE_SIZE * 1024 * 1024 * 1024;
 
 }
 
@@ -567,6 +567,7 @@ string QuickScan(CRCScanner& scanner)
 	CRCLog::Info("START scan %s", SCAN_DIRECTORY.c_str());
 	std::chrono::time_point<std::chrono::high_resolution_clock> begin = std::chrono::high_resolution_clock::now();
 	scanner.ScanQuick(SCAN_DIRECTORY);
+	//scanner.Scan(SCAN_DIRECTORY);
 	auto count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - begin).count() * 0.000001;
 	CRCLog::Info("SCAN <%s> elapse time: %f(s)", SCAN_DIRECTORY.c_str(), count);
 	return scanner.GetScanFile();

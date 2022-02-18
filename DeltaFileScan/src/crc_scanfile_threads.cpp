@@ -41,12 +41,15 @@ CRCScanner::ScanFile(fs::path& path)
 	ifstream file(path.c_str(), ios::in | ios::binary);
 	if (file.is_open())
 	{
-		unique_lock<mutex> lock(m_mtx_info);
 		time_t tt = GetFileUpdateTime(path);
 		char tmp[32] = { 0 };
 		strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", localtime(&tt));
-		tmp[sizeof(tmp) - 2] = '\0';	//去掉回车\r
-		unsigned long size = ComputeFileSize(path);
+		tmp[sizeof(tmp) - 2]	= '\0';	//去掉回车\r
+		unsigned long size		= ComputeFileSize(path);
+		//fs::path &parentPath	= path.parent_path();
+		//fs::path &fileName	= path.filename();
+
+		unique_lock<mutex> lock(m_mtx_info);
 		m_total_size += size;
 		m_total_file++;
 		m_outfile
@@ -56,7 +59,8 @@ CRCScanner::ScanFile(fs::path& path)
 			<< endl;
 		m_scan_count++;
 		if (m_scan_count % 100 == 0) {
-			CRCLog::Debug("%s%d", show_dot.c_str(), m_scan_count);
+			//CRCLog::Debug("%s%d", show_dot.c_str(), m_scan_count);
+			cout << show_dot.c_str() << m_scan_count << endl;
 			show_dot.clear();
 		}
 		else {
@@ -193,53 +197,48 @@ void CRCScanner::Stop()
 void
 CRCScanner::ThreadScan(bool isQuick)
 {
-	//while (!m_fsscan_done || !m_files.empty()) {
-	//	unique_lock<mutex> lock(m_mtx_file);
-	//	if (m_files.empty()) {
-	//		lock.unlock();
-	//		continue;
-	//	}
-	//	fs::path path = m_files.front();
-	//	m_files.pop();
-	//	lock.unlock();
-	//	if (!isQuick) {
-	//		ScanFile(path);
-	//	}
-	//	else {
-	//		ScanFileQuick(path);
-	//	}
-	//}
-	//m_wait++;
-
-	while (!m_bTerminate) 
-	{
-		fs::path path;
-		bool ok = Get(path);
-		if (ok) {
-			++m_atomic;
-			if (!isQuick) {
-				ScanFile(path);
+	if (!isQuick) {
+		while (!m_fsscan_done || !m_files.empty()) {
+			unique_lock<mutex> lock(m_mtx_file);
+			if (m_files.empty()) {
+				lock.unlock();
+				continue;
 			}
-			else {
+			fs::path path = m_files.front();
+			m_files.pop();
+			lock.unlock();
+			ScanFile(path);
+		}
+	}
+	else {
+		while (!m_bTerminate)
+		{
+			fs::path path;
+			bool ok = Get(path);
+			if (ok) {
+				++m_atomic;
 				ScanFileQuick(path);
-			}
-			--m_atomic;
+				--m_atomic;
 
-			std::unique_lock<std::mutex> lock(m_mtx_file);
-			if (m_atomic == 0 && m_files.empty())
-			{
-				//通知 waitforalldone
-				m_cond.notify_all();
+				std::unique_lock<std::mutex> lock(m_mtx_file);
+				if (m_atomic == 0 && m_files.empty())
+				{
+					//通知 waitforalldone
+					m_cond.notify_all();
+				}
 			}
 		}
 	}
 	m_wait++;
+
 }
 
 void
 CRCScanner::Scan(const string& path)
 {
 	CRCLog::Info("Scan Start ");
+
+	m_isQuick = false;
 
 	time_t t = time(0);
 	string filename = "XFullFileList";
@@ -255,15 +254,8 @@ CRCScanner::Scan(const string& path)
 		m_thread_pool.push_back(new thread(&CRCScanner::ThreadScan, this, false));
 	}
 
-	//一边扫描一边写文件
-	//不适用他的原因在下面
-	//thread thread_outfile = thread(&CRCScanner::ThreadOutput, this);
-
 	ScanDirectory(path);
 	m_fsscan_done = true;
-
-	WaitForAllDone();
-	Stop();
 
 	//如果使用静态编译，并且线程结束太快，则运行下面的程序
 	//则会发生段越界，gcc7的bug
@@ -274,16 +266,17 @@ CRCScanner::Scan(const string& path)
 	//	}
 	//}
 
-	//while (m_wait < m_num_threads) {
-	//	std::this_thread::sleep_for(std::chrono::milliseconds(5));
-	//}
+	while (m_wait < m_num_threads) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	}
 
 	m_outfile.close();
 
-	//m_thread_pool.clear();
+	m_thread_pool.clear();
 
 	CRCLog::Info("Scan Complete ");
 	CRCLog::Info("Scan File Amount: %d", m_total_file);
+
 	//CRCLog::Info("Write File Label, Please Waiting... ");
 
 	//string filestringlabel;
@@ -313,14 +306,15 @@ CRCScanner::ScanQuick(const string& path)
 {
 	CRCLog::Info("Quick Scan Start ");
 
+	m_isQuick = true;
+
 	if (!show_dot.empty()) { show_dot.clear(); }
 
 	for (unsigned int i = 0; i < m_num_threads; i++) {
 		m_thread_pool.push_back(new thread(&CRCScanner::ThreadScan, this, true));
 	}
 
-	ScanDirectory(path);
-	m_fsscan_done = true;
+	ScanDirectoryQuick(path);
 
 	thread* p = new thread(&CRCScanner::ThreadOutput, this);
 	p->detach();
@@ -332,15 +326,9 @@ CRCScanner::ScanQuick(const string& path)
 		p->join();
 	}
 
-	//while (m_wait < m_num_threads) {
-	//	std::this_thread::sleep_for(std::chrono::milliseconds(5));
-	//}
-
-	//m_thread_pool.clear();
-
-	std::cout << std::endl;
 	CRCLog::Info("Scan Complete ");
 	CRCLog::Info("Scan File Amount: %d", m_total_file);
+
 	//CRCLog::Info("Write File Label, Please Waiting... ");
 
 	//string filestringlabel;
@@ -363,6 +351,44 @@ CRCScanner::ScanQuick(const string& path)
 	//InsertByLineNumber(m_source_dir, filestringlabel.c_str(), 1);
 
 	//CRCLog::Info("Write File Complete. ");
+}
+
+void
+CRCScanner::ScanDirectoryQuick(fs::path directory)
+{
+	for (const auto & entry : fs::recursive_directory_iterator(directory))
+	{
+		if (fs::is_directory(entry.path())) {
+
+			// 使用 recursive_directory_iterator
+			// 就不在需要递归了
+			// ScanDirectory(entry.path());
+			// 不写目录了
+			//unique_lock<mutex> lock(m_mtx_info);
+			//time_t tt = GetFileUpdateTime(entry.path());
+			//char tmp[32] = { 0 };
+			//strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", localtime(&tt));
+			//outfile
+			//	<< entry.path() << " "
+			//	<< tmp << " "
+			//	<< "D"
+			//	<< endl;
+			//m_scan_count++;
+			//lock.unlock();
+			//if (m_scan_count % 100 == 0){
+			//	std::cout << m_scan_count << std::endl;
+			//} else {
+			//	std::cout << ".";
+			//}		
+
+		}
+		else {
+			if (!fs::is_regular_file(entry.path())) continue;
+			unique_lock<mutex> lock(m_mtx_file);
+			m_files.push(entry.path());
+			m_cond.notify_one();
+		}
+	}
 }
 
 void
@@ -398,7 +424,6 @@ CRCScanner::ScanDirectory(fs::path directory)
 			if (!fs::is_regular_file(entry.path())) continue;
 			unique_lock<mutex> lock(m_mtx_file);
 			m_files.push(entry.path());
-			m_cond.notify_one();
 		}
 	}
 }
