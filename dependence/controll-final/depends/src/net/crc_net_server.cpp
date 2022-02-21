@@ -53,6 +53,14 @@ CRCNetServer::OnNetLeave(CRCClient* pClient)
         on_client_leave(pWSClient);
 }
 
+void 
+CRCNetServer::OnNetRun(CRCWorkServer* pServer)
+{
+    if (on_net_run){
+        on_net_run(pServer);
+    }
+}
+
 void
 CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
 {
@@ -62,7 +70,8 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         //CRCLog_Info("websocket client say: PONG");
         return;
     }
-    auto dataStr = pWSClient->fetch_data();
+    auto pStr = pWSClient->fetch_data();
+    std::string dataStr(pStr, wsh.len);
     //CRCLog_Info("websocket client say: %s", dataStr);
 
     CRCJson json;
@@ -92,37 +101,41 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         CRCLog_Error("not found key<%s>.", "groupid");
         return;
     }
+
+    int msg_type = 0;
+    if (!json.Get("type", msg_type))
+    {
+        CRCLog_Error("not found key<type>.");
+        return;
+    }
+
     
     //服务端响应
-    bool is_resp = false;
-    if (json.Get("is_resp", is_resp) && is_resp)
+    //服务端推送
+    if (MSG_TYPE_RESP == msg_type ||
+        MSG_TYPE_PUSH == msg_type)
     {
         if (!pWSClient->is_ss_link())
         {
-            CRCLog_Error("pWSClient->is_ss_link=false, is_resp=true.");
+            CRCLog_Error("pWSClient->is_ss_link=false, msg_type = %d.", msg_type);
             return;
         }
 
         int clientId = 0;
         if (!json.Get("clientId", clientId))
         {
-            CRCLog_Error("not found key<%s>.", "clientId");
+            CRCLog_Error("not found key<clientId>.");
             return;
         }
-
-        //auto client = dynamic_cast<CRCNetClientS*>( pServer->find_client(clientId));
-        CRCNetClientS* client = nullptr;
-        for (CRCWorkServer* server : workServers())
-        {
-            client = dynamic_cast<CRCNetClientS*>( server->find_client(clientId));
-            if (client) {break;}
-        }
+        //优先取得linkServer的Id进行转发消息
+        clientId = ClientId::get_link_id(clientId);
+        auto client = dynamic_cast<CRCNetClientS*>( find_client(clientId));
         if (!client)
         {
-            CRCLog_Error("CRCNetServer::OnNetMsgWS::pServer->find_client(%d) miss.", clientId);
+            CRCLog_Error("CRCNetServer::OnNetMsgWS::find_client(%d) miss.", clientId);
             return;
         }
-        if (SOCKET_ERROR == client->writeText(dataStr, wsh.len))
+        if (SOCKET_ERROR == client->writeText(dataStr.c_str(), dataStr.length()))
         {
             CRCLog_Error("CRCNetServer::OnNetMsgWS::sslink(%s)->clientId(%d) writeText SOCKET_ERROR.", pWSClient->link_name().c_str(), clientId);
         }
@@ -130,16 +143,84 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         return;
     }
 
-    bool is_req = false;
-    if (!json.Get("is_req", is_req))
+    //服务端批量推送
+    if (MSG_TYPE_PUSH_S == msg_type)
     {
-        CRCLog_Error("not found key<%s>.", "is_req");
+        if (!pWSClient->is_ss_link())
+        {
+            CRCLog_Error("pWSClient->is_ss_link=false, msg_type = %d.", msg_type);
+            return;
+        }
+        //获得目标用户id
+        auto clients = json["clients"];
+        if (!clients.IsArray())
+        {
+            CRCLog_Error("not found key<clients>.");
+            return;
+        }
+        //移除原始消息目标用户数组
+        //json.Delete("clients");
+        json.Replace("type", MSG_TYPE_PUSH);
+        //遍历目标开始推送
+        int size = clients.GetArraySize();
+        int clientId = 0;
+        //json.Add("clientId", clientId);
+        //for (size_t i = 0; i < size; i++)
+        //{
+        //	if (!clients.Get(i, clientId))
+        //		continue;
+        //	//每条推送消息的目标不同
+        //	json.Replace("clientId", clientId);
+        //	//
+        //	clientId = ClientId::get_link_id(clientId);
+        //	auto client = dynamic_cast<INetClientS*>(find_client(clientId));
+        //	if (!client)
+        //	{
+        //		CELLLog_Error("INetServer::OnNetMsgWS::find_client(%d) miss.", clientId);
+        //		return;
+        //	}
+        //	client->transfer(json);
+        //}
+
+        //分类<linkid,clients>
+        std::map<CRCNetClientS*, CRCJson> temp;
+        for (size_t i = 0; i < size; i++)
+        {
+            if (!clients.Get(i, clientId))
+                continue;
+
+            auto link_id = ClientId::get_link_id(clientId);
+            auto link_gate = dynamic_cast<CRCNetClientS*>(find_client(link_id));
+            if (!link_gate)
+            {
+                CRCLog_Error("INetServer::OnNetMsgWS::find_link_gate(%d) miss.", link_id);
+                continue;
+            }
+            //相同的linkServer上的client存储在一起
+            auto itr = temp.find(link_gate);
+            if (itr == temp.end())
+            {
+                neb::CJsonObject clients;
+                clients.Add(clientId);
+                temp[link_gate] = clients;
+            }
+            else {
+                itr->second.Add(clientId);
+            }
+        }
+        //批量推送消息给linkServer
+        for (auto& itr : temp)
+        {
+            json.Delete("clients");
+            json.Add("clients", itr.second);
+            itr.first->transfer(json);
+        }
         return;
     }
 
     //用户端请求
     //服务端请求
-    if (is_req)
+    if (MSG_TYPE_REQ == msg_type)
     {
         std::string cmd;
         if (!json.Get("cmd", cmd))
@@ -147,22 +228,81 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
             CRCLog_Error("not found key<%s>.", "cmd");
             return;
         }
+        //
+        int clientId = 0;
+        if (!json.Get("clientId", clientId))
+        {//
+            json.Add("clientId", pWSClient->clientId());
+        }
+        else {
+            clientId = ClientId::set_link_id(pWSClient->clientId(), clientId);
+            json.Replace("clientId", clientId);
+        }
 
-        int clientId = (int)pWSClient->sockfd();
-        json.Add("clientId", clientId);
+        //is_cc 标识是否为LinkGate转发的客户端请求
+        bool is_cc = false;
+        json.Get("is_cc", is_cc);
+        if (!is_cc)
+        {//非LinkGate转发的请求，才做以下处理
+            if (pWSClient->is_login())
+            {
+                json.Add("userId", pWSClient->userId());
+            }
 
-        //本地服务器服务不用分组
+            if (pWSClient->is_ss_link())
+            {
+                json.Add("is_ss_link", true, true);
+            }
+        }
+
+        //网关本地支持的指令
         if (on_net_msg_do(pServer, pWSClient, cmd, json))
             return;
 
-        //客户提供服务需要分组
-        groupid.append(":").append(cmd);
-        on_other_msg(pServer, pWSClient, groupid, json);
+        if (pWSClient->is_cc_link() || pWSClient->is_ss_link())
+        {
+            on_other_msg(pServer, pWSClient, cmd, json);
+        }
 
         return;
     }
 
-    CRCLog_Error("CRCNetServer::OnNetMsgWS:: is_req=false,  is_resp=false.");   
+    //只有服务可以发出广播
+    if (MSG_TYPE_BROADCAST == msg_type)
+    {
+        if (!pWSClient->is_ss_link())
+        {
+            CRCLog_Error("pWSClient->is_ss_link=false, msg_type = %d.", msg_type);
+            return;
+        }
+
+        std::string cmd;
+        if (!json.Get("cmd", cmd))
+        {
+            CRCLog_Error("not found key<%s>.", "cmd");
+            return;
+        }
+
+        json.Add("clientId", pWSClient->clientId());
+
+        if (pWSClient->is_login())
+        {
+            json.Add("userId", pWSClient->userId());
+        }
+
+        if (pWSClient->is_ss_link())
+        {
+            json.Add("is_ss_link", true, true);
+        }
+
+        on_broadcast_msg(pServer, pWSClient, cmd, json);
+
+        return;
+    }
+
+    CRCLog_Error("CRCNetServer::OnNetMsgWS:: unknow msg type <%d>.", msg_type);
+
+    return; 
 }
 
 void 
@@ -195,15 +335,15 @@ CRCNetServer::Init()
 void 
 CRCNetServer::reg_msg_call(std::string cmd, NetEventCall call)
 {
-    _map_msg_call[cmd] = call;
+    m_map_msg_call[cmd] = call;
     CRCLog_Info("CRCNetServer::reg_msg_call cmd<%s>.", cmd.c_str());
 }
 
 bool 
 CRCNetServer::on_net_msg_do(CRCWorkServer* pServer, CRCNetClientS* pWSClient, std::string& cmd, CRCJson& msgJson)
 {
-    auto itr = _map_msg_call.find(cmd);
-    if (itr != _map_msg_call.end())
+    auto itr = m_map_msg_call.find(cmd);
+    if (itr != m_map_msg_call.end())
     {
         itr->second(pServer, pWSClient, msgJson);
         return true;

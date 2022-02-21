@@ -71,6 +71,8 @@ public:
     //关闭SOCKET
     void Close();
 
+    CRCClient* find_client(int id);
+
     //加入事件
     virtual void OnNetJoin(CRCClient* pClient) override;
 

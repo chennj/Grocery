@@ -80,9 +80,9 @@ void
 CRCWorkServer::CheckTime()
 {
     //当前时间戳
-    auto nowTime = CRCTime::getNowInMilliSec();
-    auto dt = nowTime - _oldTime;
-    _oldTime = nowTime;
+    auto nowTime    = CRCTime::getNowInMilliSec();
+    auto dt         = nowTime - _oldTime;
+    _oldTime        = nowTime;
 
     CRCClient* pClient = nullptr;
     for (auto iter = _clients.begin(); iter != _clients.end(); )

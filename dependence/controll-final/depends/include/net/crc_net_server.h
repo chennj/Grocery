@@ -15,11 +15,14 @@ class CRCNetServer : public  CRCEasyWebSocketServer
 {
 private:
 	typedef std::function<void(CRCWorkServer*, CRCNetClientS*, neb::CJsonObject&)> NetEventCall;
-	std::map<std::string, NetEventCall> _map_msg_call;
+	std::map<std::string, NetEventCall> m_map_msg_call;
 
 public:
-	std::function<void(CRCWorkServer*, CRCNetClientS*, std::string&, neb::CJsonObject&)> on_other_msg = nullptr;
+	std::function<void(CRCWorkServer*, CRCNetClientS*, std::string&, neb::CJsonObject&)> on_other_msg 		= nullptr;
+	std::function<void(CRCWorkServer*, CRCNetClientS*, std::string&, neb::CJsonObject&)> on_broadcast_msg 	= nullptr;
+
 	std::function<void(CRCNetClientS*)> on_client_leave = nullptr;
+	std::function<void(CRCWorkServer*)> on_net_run 		= nullptr;
 
 private:
 	virtual CRCClient* makeClientObj(SOCKET cSock) override;
@@ -27,6 +30,8 @@ private:
 	virtual void OnNetMsg(CRCWorkServer* pServer, CRCClient* pClient, CRCDataHeader* header) override;
 
 	virtual void OnNetLeave(CRCClient* pClient) override;
+
+	virtual void OnNetRun(CRCWorkServer* pServer);
 
 public:
 	virtual void OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient);

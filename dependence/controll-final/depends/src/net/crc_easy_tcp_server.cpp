@@ -132,6 +132,21 @@ CRCEasyTcpServer::AddClientToCRCWorkServer(CRCClient* pClient)
     pMinServer->addClient(pClient);
 }
 
+CRCClient*
+CRCEasyTcpServer::find_client(int id)
+{
+    //查找客户数量最少的CELLServer消息处理对象
+    for (auto pServer : _workServers)
+    {
+        CRCClient* c = pServer->find_client(id);
+        if (c)
+        {
+            return c;
+        }
+    }
+    return nullptr;
+}
+
 void 
 CRCEasyTcpServer::Close()
 {

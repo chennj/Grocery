@@ -23,13 +23,15 @@ class CRCNetTransfer
         void del(CRCNetClientS* client);
 
         CRCNetClientS* get();
+
+        void on_broadcast_do(const char* pData, int len);
     private:
-        std::vector<CRCNetClientS*> _listeners;
+        std::vector<CRCNetClientS*> m_listeners;
         int index = 0;
     };
 
 private:
-    std::map<std::string, Listeners> _msg_listeners;
+    std::map<std::string, Listeners> m_msg_listeners;
 
 public:
     void add(std::string cmd, CRCNetClientS* client);
@@ -38,6 +40,8 @@ public:
 
     void del(std::string cmd, CRCNetClientS* client);
 
-    bool on_net_msg_do(std::string& cmd, std::string& data);
+    int  on_net_msg_do(std::string& cmd, std::string& data);
+
+    int  on_broadcast_do(const std::string& cmd, const std::string& data);
 };
 #endif

@@ -3,27 +3,35 @@
 void 
 GenController::Init()
 {
-    _netserver.Init();
-    _netserver.on_other_msg     = std::bind(&GenController::on_other_msg, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-    _netserver.on_client_leave  = std::bind(&GenController::on_client_leave, this, std::placeholders::_1);
-    _netserver.reg_msg_call("cs_msg_heart", std::bind(&GenController::cs_msg_heart, this,std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    _netserver.reg_msg_call("ss_reg_api", std::bind(&GenController::ss_reg_api, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    m_netserver.Init();
+
+    m_netserver.on_other_msg     = std::bind(&GenController::on_other_msg, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+    m_netserver.on_broadcast_msg = std::bind(&GenController::on_broadcast_msg, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+    m_netserver.on_client_leave  = std::bind(&GenController::on_client_leave, this, std::placeholders::_1);
+    
+    m_netserver.reg_msg_call("cs_msg_heart", std::bind(&GenController::cs_msg_heart, this,std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    m_netserver.reg_msg_call("ss_reg_api", std::bind(&GenController::ss_reg_api, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 }
 
 void 
 GenController::Close()
 {
-    _netserver.Close();
+    m_netserver.Close();
 }
 
 void 
 GenController::cs_msg_heart(CRCWorkServer* server, CRCNetClientS* client, CRCJson& msg)
 {
-    //CRCLog_Info("GenController::cs_msg_heart");
+    if (client->is_cc_link() || client->is_ss_link())
+    {
+        //CRCLog_Info("GateServer::cs_msg_heart");
 
-    //CRCJson ret;
-    //ret.Add("data", "heart success");
-    //client->response(msg, ret);
+        //CRCJson ret;
+        //ret.Add("data", "wo ye bu ji dao.");
+        //client->response(msg, ret);
+
+        //client->respone(msg, "wo ye bu ji dao.");
+    }
 }
 
 void 
@@ -37,7 +45,7 @@ GenController::ss_reg_api(CRCWorkServer* server, CRCNetClientS* client, CRCJson&
         CRCJson ret;
         ret.Add("state", 0);
         ret.Add("msg", "sskey error.");
-        client->response(msg, ret);
+        client->resp_error(msg, ret);
         return;
     }
     if (gpid.empty()){
@@ -59,33 +67,71 @@ GenController::ss_reg_api(CRCWorkServer* server, CRCNetClientS* client, CRCJson&
         CRCJson ret;
         ret.Add("state", 0);
         ret.Add("msg", "not found apis.");
-        client->response(msg, ret);
+        client->resp_error(msg, ret);
         return;
     }
+
     int size = apis.GetArraySize();
     for (size_t i = 0; i < size; i++)
     {
         std::string cmd = gpid + ":" + apis(i);
-        _transfer.add(cmd, client);
+        m_transfer.add(cmd, client);
         CRCLog_Info("ss_reg_api: %s >> %s", name.c_str(), cmd.c_str());
     }
 
-    client->response(msg, "ss_reg_api ok!");
+    CRCJson json;
+	json.Add("ClientId", client->clientId());
+    client->response(msg, json);
 }
 
 void 
 GenController::on_other_msg(CRCWorkServer* server, CRCNetClientS* client, std::string& cmd, CRCJson& msg)
 {
     auto str = msg.ToString();
-    if (!_transfer.on_net_msg_do(cmd, str))
+    int  ret = m_transfer.on_net_msg_do(cmd, str);
+
+    if (STATE_CODE_UNDEFINE_CMD == ret)
     {
         CRCLog_Info("on_other_msg: transfer not found cmd<%s>.", cmd.c_str());
+        client->response(msg, "undefine cmd!", state_code_undefine_cmd);
     }
+    else if (STATE_CODE_SERVER_BUSY == ret)
+    {
+        CRCLog_Info("on_other_msg: server busy! cmd<%s>.", cmd.c_str());
+        client->response(msg, "server busy!", state_code_server_busy);
+    }
+    else if (STATE_CODE_SERVER_OFF == ret)
+    {
+        CRCLog_Info("on_other_msg: server offline! cmd<%s>.", cmd.c_str());
+        client->response(msg, "server offline!", state_code_server_off);
+    }
+}
+
+void 
+GenController::on_broadcast_msg(CRCWorkServer* server, CRCNetClientS* client, std::string& cmd, CRCJson& msg)
+{
+    auto str = msg.ToString();
+	m_transfer.on_broadcast_do(cmd, str);
 }
 
 void 
 GenController::on_client_leave(CRCNetClientS* client)
 {
-    if(client->is_ss_link())
-        _transfer.del(client);
+    if(client->is_ss_link()){
+        m_transfer.del(client);
+    }
+
+    if (client->is_login())
+    {
+        CRCJson msg;
+        msg.Add("clientId", client->clientId());
+        msg.Add("userId",   client->userId());
+        broadcast("ss_msg_user_exit", msg);
+    }
+
+    {
+        CRCJson msg;
+        msg.Add("clientId", client->clientId());
+        broadcast("ss_msg_client_exit", msg);
+    }
 }

@@ -91,6 +91,12 @@ CRCEasyTcpClient::Close()
     }
 }
 
+void 
+CRCEasyTcpClient::toClose()
+{
+    _pClient->onClose();
+}
+
 bool 
 CRCEasyTcpClient::isRun()
 {

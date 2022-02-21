@@ -1,97 +1,135 @@
 #include "crc_net_client_c.h"
 
+CRCNetClientC::CRCNetClientC()
+{
+    m_ret_timeout.Add("type",   MSG_TYPE_RESP);
+    m_ret_timeout.Add("msgId",  0);
+    m_ret_timeout.Add("state",  STATE_CODE_TIMEOUT);
+    m_ret_timeout.Add("data",   "request timeout");
+}
+
 bool 
 CRCNetClientC::connect(const char* link_name,const char* url)
 {
-    _link_name = link_name;
-    _url = url;
+    m_link_name = link_name;
+    m_url = url;
 
     int s_size = CRCConfig::Instance().getInt("nSendBuffSize", SEND_BUFF_SZIE);
     int r_size = CRCConfig::Instance().getInt("nRecvBuffSize", RECV_BUFF_SZIE);
 
-    _client.send_buff_size(s_size);
-    _client.recv_buff_size(r_size);
+    m_client.send_buff_size(s_size);
+    m_client.recv_buff_size(r_size);
 
     //do
-    _client.onopen = [this](CRCClientCWebSocket* pWSClient)
+    m_client.onopen = [this](CRCClientCWebSocket* pWSClient)
     {
-        CRCLog_Info("%s::CRCNetClientC::connect(%s) success.", _link_name.c_str(), _url.c_str());
+        CRCLog_Info("%s::CRCNetClientC::connect(%s) success.", m_link_name.c_str(), m_url.c_str());
         CRCJson json;
-        json.Add("link_name", _link_name);
-        json.Add("url", _url);
+        json.Add("link_name", m_link_name);
+        json.Add("url", m_url);
         on_net_msg_do("onopen", json);
     };
 
-    _client.onmessage = [this](CRCClientCWebSocket* pWSClient)
+    m_client.onmessage = [this](CRCClientCWebSocket* pWSClient)
     {
         CRCIO::WebSocketHeader& wsh = pWSClient->WebsocketHeader();
         if (wsh.opcode == CRCIO::opcode_PONG)
         {
             CRCLog_Info("websocket server say: PONG");
-            return;
+            return false;
         }
 
-        auto dataStr = pWSClient->fetch_data();
-        CRCLog_Info("websocket server say: %s", dataStr);
+        auto pchar = pWSClient->fetch_data();
+        std::string dataStr(pchar, wsh.len);
+        //CRCLog_Info("websocket server say: %s", pchar);
 
         CRCJson json;
         if (!json.Parse(dataStr))
         {
             CRCLog_Error("json.Parse error : %s", json.GetErrMsg().c_str());
-            return;
+            return false;
+        }
+
+        int msg_type = 0;
+        if (!json.Get("type", msg_type))
+        {
+            CRCLog_Error("not found key<type>");
+            return false;
         }
 
         int msgId = 0;
         if (!json.Get("msgId", msgId))
         {
-            CRCLog_Error("not found key<%s>.", "msgId");
-            return;
+            CRCLog_Error("not found key<msgId>");
+            return false;
         }
 
         time_t time = 0;
         if (!json.Get("time", time))
         {
-            CRCLog_Error("not found key<%s>.", "time");
-            return;
+            CRCLog_Error("not found key<time>");
+            return false;
         }
 
-        //响应(对同一个msgId)
-        bool is_resp = false;
-        if (json.Get("is_resp", is_resp) && is_resp)
+        //响应
+        if (MSG_TYPE_RESP ==  msg_type)
         {
+            int msgId = 0;
+            if (!json.Get("msgId", msgId))
+            {
+                CRCLog_Error("not found key<msgId>.");
+                return false;
+            }
+
             on_net_msg_do(msgId, json);
-            return;
+            return false;
         }
 
-        //请求
-        bool is_req = false;
-        if (json.Get("is_req", is_req) && is_req)
+        //请求 or 推送
+        if (MSG_TYPE_REQ        == msg_type ||
+            MSG_TYPE_PUSH       == msg_type ||
+            MSG_TYPE_BROADCAST  == msg_type)
         {
+            if (on_other_push && MSG_TYPE_PUSH == msg_type)
+            {//一般呢LinkGate才会有on_other_push
+                do
+                {
+                    //没有clientId
+                    //clientId和我相同的消息不需要on_other_push
+                    int clientId = 0;
+                    if (json.Get("clientId", clientId) && clientId == m_clientId)
+                        break;
+
+                    on_other_push(this, json);
+                    return true;
+                } while (false);
+            }
+
             std::string cmd;
             if (!json.Get("cmd", cmd))
             {
-                CRCLog_Error("not found key<%s>.", "cmd");
-                return;
+                CRCLog_Error("not found key<cmd>.");
+                return false;
             }
 
             on_net_msg_do(cmd, json);
-            return;
+            return true;
         }
     };
 
-    _client.onclose = [this](CRCClientCWebSocket* pWSClient)
+    m_client.onclose = [this](CRCClientCWebSocket* pWSClient)
     {
         CRCJson json;
-        json.Add("link_name", _link_name);
-        json.Add("url", _url);
+        json.Add("link_name", m_link_name);
+        json.Add("url", m_url);
         on_net_msg_do("onclose", json);
     };
 
-    _client.onerror = [this](CRCClientCWebSocket* pWSClient)
+    m_client.onerror = [this](CRCClientCWebSocket* pWSClient)
     {
         CRCJson json;
-        json.Add("link_name", _link_name);
-        json.Add("url", _url);
+        json.Add("link_name", m_link_name);
+        json.Add("url", m_url);
         on_net_msg_do("onerror", json);
     };
 
@@ -101,24 +139,26 @@ CRCNetClientC::connect(const char* link_name,const char* url)
 bool 
 CRCNetClientC::run(int microseconds)
 {
-    if (_client.isRun())
+    if (m_client.isRun())
     {
-        if (_time2heart.getElapsedSecond() > 5.0)
+        check_timeout();
+
+        if (m_time2heart.getElapsedSecond() > 5.0)
         {
-            _time2heart.update();
+            m_time2heart.update();
             CRCJson json;
             //request("cs_msg_heart", json,[](CRCNetClientC* client, CRCJson& msg) {
             //    CRCLog_Info("CRCNetClientC::cs_msg_heart return: %s", msg("data").c_str());
             //});
             request("cs_msg_heart", json);
         }
-        return _client.OnRun(microseconds);
+        return m_client.OnRun(microseconds);
     }
 
-    if (_client.connect(_url.c_str()))
+    if (m_client.connect(m_url.c_str()))
     {
-        _time2heart.update();
-        CRCLog_Warring("%s::CRCNetClientC::connect(%s) success.", _link_name.c_str(), _url.c_str());
+        m_time2heart.update();
+        CRCLog_Warring("%s::CRCNetClientC::connect(%s) success.", m_link_name.c_str(), m_url.c_str());
         return true;
     }
 
@@ -129,136 +169,113 @@ CRCNetClientC::run(int microseconds)
 void 
 CRCNetClientC::close()
 {
-    _client.Close();
+    m_client.Close();
 }
+
+void 
+CRCNetClientC::to_close()
+{
+    m_client.Close();
+}
+
+void
+CRCNetClientC::check_timeout()
+{
+    //如果_timeout_dt为0  就不检测超时
+    if (0 == m_timeout_dt)
+        return;
+
+    time_t now = CRCTime::system_clock_now();
+    for (auto itr = m_map_request_call.begin(); itr != m_map_request_call.end(); )
+    {
+        if (now - itr->second.dt >= m_timeout_dt)
+        {
+            //该请求触发超时
+            itr->second.callFun(this, m_ret_timeout);
+            //移除该请求的响应回调
+            auto itrOld = itr;
+            ++itr;
+            m_map_request_call.erase(itrOld);
+            continue;
+        }
+        ++itr;
+    }
+}   
 
 void 
 CRCNetClientC::reg_msg_call(std::string cmd, NetEventCall call)
 {
-    _map_msg_call[cmd] = call;
+    m_map_msg_call[cmd] = call;
 }
 
 bool 
 CRCNetClientC::on_net_msg_do(const std::string& cmd, CRCJson& msgJson)
 {
-    auto itr = _map_msg_call.find(cmd);
-    if (itr != _map_msg_call.end())
+    auto itr = m_map_msg_call.find(cmd);
+    if (itr != m_map_msg_call.end())
     {
         itr->second(this, msgJson);
         return true;
     }
-    CRCLog_Info("%s::CRCNetClientC::on_net_msg_do not found cmd<%s>.", _link_name.c_str(),cmd.c_str());
+    CRCLog_Info("%s::CRCNetClientC::on_net_msg_do not found cmd<%s>.", m_link_name.c_str(),cmd.c_str());
     return false;
 }
 
 bool 
 CRCNetClientC::on_net_msg_do(int msgId, CRCJson& msgJson)
 {
-    auto itr = _map_request_call.find(msgId);
-    if (itr != _map_request_call.end())
+    auto itr = m_map_request_call.find(msgId);
+    if (itr != m_map_request_call.end())
     {
-        itr->second(this, msgJson);
+        itr->second.callFun(this, msgJson);
+        m_map_request_call.erase(itr);
         return true;
     }
-    CRCLog_Info("%s::CRCNetClientC::on_net_msg_do not found msgId<%d>.", _link_name.c_str(), msgId);
+    CRCLog_Info("%s::CRCNetClientC::on_net_msg_do not found msgId<%d>.", m_link_name.c_str(), msgId);
     return false;    
 }
 
-void 
-CRCNetClientC::request(const std::string& cmd, CRCJson& data)
+bool 
+CRCNetClientC::transfer(neb::CJsonObject& msg)
 {
-    _time2heart.update();
-
-    CRCJson msg;
-    msg.Add("cmd",      cmd);
-    msg.Add("is_req",   true, true);
-    msg.Add("msgId",    ++_msgId);
-    msg.Add("groupid", _groupid);
-    msg.Add("time",     CRCTime::system_clock_now());
-    msg.Add("data",     data);
-
     std::string retStr = msg.ToString();
-    _client.writeText(retStr.c_str(), retStr.length());
+    if (SOCKET_ERROR == m_client.writeText(retStr.c_str(), retStr.length()))
+    {
+        CRCLog_Error("INetClient::transfer::writeText SOCKET_ERROR.");
+        return false;
+    }
+    m_time2heart.update();
+    return true;
 }
 
-void 
-CRCNetClientC::request(const std::string& cmd, CRCJson& data, NetEventCall call)
+bool 
+CRCNetClientC::request(CRCJson& msg, NetEventCall call)
 {
-    _time2heart.update();
-    
-    CRCJson msg;
-    msg.Add("cmd",      cmd);
-    msg.Add("is_req",   true, true);
-    msg.Add("msgId",    ++_msgId);
-    msg.Add("groupid",  _groupid);
-
-    _map_request_call[_msgId] = call;
-
-    msg.Add("time", CRCTime::system_clock_now());
-    msg.Add("data", data);
-
-    std::string retStr = msg.ToString();
-    _client.writeText(retStr.c_str(), retStr.length());
-}
-
-void 
-CRCNetClientC::response(int msgId, std::string data)
-{
-    CRCJson ret;
-    ret.Add("msgId",    msgId);
-    ret.Add("is_resp",  true, true);
-    ret.Add("time",     CRCTime::system_clock_now());
-    ret.Add("data",     data);
-    ret.Add("groupid",  _groupid);
-
-    std::string retStr = ret.ToString();
-    _client.writeText(retStr.c_str(), retStr.length());
-}
-
-void 
-CRCNetClientC::response(CRCJson& msg, std::string data)
-{
+    //置换msgId
     int msgId = 0;
     if (!msg.Get("msgId", msgId))
     {
-        CRCLog_Error("not found key<%s>.", "msgId");
-        return;
+        msg.Add("msgId", ++m_msgId);
+    }
+    else {
+        msg.Replace("msgId", ++m_msgId);
     }
 
-    CRCJson ret;
-    ret.Add("msgId",    msgId);
-    ret.Add("is_resp",  true, true);
-    ret.Add("time",     CRCTime::system_clock_now());
-    ret.Add("data",     data);
-    ret.Add("groupid",  _groupid);
+    //转发
+    if (!transfer(msg))
+    {
+        return false;
+    }
 
-    std::string retStr = ret.ToString();
-    _client.writeText(retStr.c_str(), retStr.length());
+    //记录回调
+    if (call != nullptr)
+    {
+        NetEventCallData calldata;
+        calldata.callFun            = call;
+        calldata.dt                 = CRCTime::system_clock_now();
+        m_map_request_call[m_msgId] = calldata;
+    }
+    return true;
 }
 
-void 
-CRCNetClientC::response(CRCJson& msg, CRCJson& ret)
-{
-    int msgId = 0;
-    if (!msg.Get("msgId", msgId))
-    {
-        CRCLog_Error("not found key<%s>.", "msgId");
-        return;
-    }
 
-    int clientId = 0;
-    if (!msg.Get("clientId", clientId))
-    {
-        CRCLog_Error("not found key<%s>.", "clientId");
-        return;
-    }
-
-    ret.Add("msgId",    msgId);
-    ret.Add("clientId", clientId);
-    ret.Add("is_resp",  true, true);
-    ret.Add("time",     CRCTime::system_clock_now());
-    ret.Add("groupid",  _groupid);
-
-    std::string retStr = ret.ToString();
-    _client.writeText(retStr.c_str(), retStr.length());
-}
