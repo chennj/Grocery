@@ -19,6 +19,7 @@
     <ClCompile Include="src\crc_scanfile_threads.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="monitor_dir.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\crc_config.h">

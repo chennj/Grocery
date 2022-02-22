@@ -39,8 +39,11 @@ vector<fs::path>	MOVEFILES;
 static bool		IS_FIRST_RUN	= true;							//是否第一次运行
 static map<string, unsigned long long> FULLLISTFILEMAP;			//当前全量扫描缓存
 
-size_t	SHOW_COUNT		= 0;
-string	SHOW_DOT;
+size_t		SHOW_COUNT		= 0;
+string		SHOW_DOT;
+
+//atomic_bool	IS_CHANGE{ false };
+//CRCThread	MonitorThread;
 
 //----------------------------------------------------
 void	AppendSuffix(string & fileName);
@@ -51,7 +54,7 @@ void	ShowProcessEx();										//用作显示进度，避免无聊
 void	ShowProcess();
 time_t	StringToDatetime(std::string str);
 bool	MyCopyFile(const string& from, const string& to);		//filesystem的copy文件在文件建立之后立即拷贝出现拷贝不完整的BUG
-
+bool	IsDirectoryChangging();
 //----------------------------------------------------
 int main(int argc, char* argv[])
 {
@@ -70,8 +73,6 @@ int main(int argc, char* argv[])
 
 	Init(argc, argv);
 
-	//设置运行日志名称
-
 	if (!CheckParam()) {
 		return -1;
 	}
@@ -80,6 +81,9 @@ int main(int argc, char* argv[])
 		DELAY_TIME = 2;								//分钟
 		SEPRARTE_SIZE_BYTE = 10 * 1024 * 1024;		//10M
 	}
+
+	//for debug
+	//IsDirectoryChangging();
 
 	unsigned long long	PreMaxNo;
 	bool				cur_list_file_exist;
@@ -215,6 +219,18 @@ int main(int argc, char* argv[])
 	//如果当前文件不存在，扫描
 	//----------------------------------------------------
 	if (!cur_list_file_exist) {
+		size_t wait_count = 3;
+		while (IsDirectoryChangging()) {
+			CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING ... ");
+			if (wait_count--) {
+				continue;
+			}
+			else {
+				MOVEFILES.clear();
+				CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING too long, goto NEXT ");
+				goto END;
+			}
+		}
 		CUR_LIST_FILE = QuickScan(Scanner);
 	}
 	//----------------------------------------------------
@@ -243,6 +259,8 @@ int main(int argc, char* argv[])
 				CRCLog::Error("COPY FILE %s FAILED", CUR_LIST_FILE.c_str());
 				exit(0);
 			}
+
+			Sleep(100);
 		}
 		else {
 			CRCLog::Error("IS FIRST RUN, but current file [] is not exist!", CUR_LIST_FILE);
@@ -335,6 +353,9 @@ int main(int argc, char* argv[])
 			delete entry;
 		}
 		deltaFile.close();
+
+		//睡一会儿防止增量文件还没刷新完
+		Sleep(100);
 	}
 	else {
 		CRCLog::Info("DELETE Full scan file %s, BECAUSE the file as same as Previous file", CUR_LIST_FILE.c_str());
@@ -390,6 +411,19 @@ int main(int argc, char* argv[])
 	CRCLog::Info("Ready to detect whether there are qualified Delta files, SIZE: %d", MOVEFILES.size());
 	if (!MOVEFILES.empty())
 	{
+		size_t wait_count = 3;
+		while (IsDirectoryChangging()) {
+			CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING ... ");
+			if (wait_count--) {
+				continue;
+			}
+			else {
+				MOVEFILES.clear();
+				CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING too long, goto NEXT ");
+				goto END;
+			}
+		}
+
 		CRCLog::Info("START TRANSFERRING files to destination ADDRESS: %s", TARGET_DIRECTORY.c_str());
 		SHOW_COUNT = 0;
 		SHOW_DOT.clear();
@@ -537,6 +571,14 @@ bool CheckParam()
 		return false;
 	}
 
+	fs::path spath = SCAN_DIRECTORY;
+	fs::path tpath = TARGET_DIRECTORY;
+
+	if (spath.compare(tpath) == 0) {
+		CRCLog::Error("TARGET directory cann't as same name as SCAN directory");
+		return false;
+	}
+
 	if (DELAY_TIME > (7 * 24 * 60) || DELAY_TIME < 2) {
 		CRCLog::Error("DELAYING to execution cannot exceed 7 days OR less then 2 min");
 		return false;
@@ -558,7 +600,7 @@ bool CheckParam()
 void Init(int argc, char* argv[])
 {
 	//读取参数
-	SCAN_DIRECTORY		= CRCConfig::Instance().getStr("scanDir", "D:\\书籍");
+	SCAN_DIRECTORY		= CRCConfig::Instance().getStr("scanDir", "D:\\empty");
 	TARGET_DIRECTORY	= CRCConfig::Instance().getStr("targetDir", "D:\\temp");
 	CUR_LIST_FILE		= CRCConfig::Instance().getStr("curListFile", "");
 	PRE_LIST_FILE		= CRCConfig::Instance().getStr("preListFile", "");
@@ -642,4 +684,134 @@ bool MyCopyFile(const string& from, const string& to)
 	dest.close();
 
 	return source && dest;
+}
+
+bool IsDirectoryChangging()
+{
+	std::wstring stemp	= std::wstring(SCAN_DIRECTORY.begin(), SCAN_DIRECTORY.end());
+	LPCWSTR lpdir		= stemp.c_str();
+	
+	//下面的代码会和扫描目录的程序发送冲突，产生多线程竞态
+	//MonitorThread.Start(nullptr, [&](CRCThread* pThread) 
+	//{
+	//	DW_CHANGE_HANDLE = FindFirstChangeNotification(
+	//		sw,
+	//		FALSE,
+	//		FILE_NOTIFY_CHANGE_FILE_NAME
+	//	);																		//设置返回通知的句柄
+	//	if (DW_CHANGE_HANDLE == INVALID_HANDLE_VALUE) {
+	//		//判断是否设置成功
+	//		CRCLog::Error("DW_CHANGE_HANDLE is invalid handle value <%d>", GetLastError());
+	//		exit(0);
+	//	}
+
+	//	CRCLog::Info("START Monitor Scan directory <%s>", lpdir);
+
+	//	while (pThread->isRun())												//设置循环，监视是否有
+	//	{													
+	//		DW_WAIT_STATUS = WaitForSingleObject(DW_CHANGE_HANDLE, 1000);		//通知返回
+	//		if (DW_WAIT_STATUS == WAIT_OBJECT_0) {
+	//			CRCLog::Info("Monitor Notification Something Changed ");
+	//			IS_CHANGE = true;
+	//		}
+	//		else {
+	//			IS_CHANGE = false;
+	//		}
+
+	//		FindCloseChangeNotification(DW_CHANGE_HANDLE);						//关闭句柄
+	//		DW_CHANGE_HANDLE = FindFirstChangeNotification(
+	//			sw,
+	//			false,
+	//			FILE_NOTIFY_CHANGE_FILE_NAME
+	//		);																	//设置返回通知的句柄
+	//		if (DW_CHANGE_HANDLE == INVALID_HANDLE_VALUE) {
+	//			//判断是否设置成功
+	//			CRCLog::Error("DW_CHANGE_HANDLE is invalid handle value <%d>", GetLastError());
+	//			IS_CHANGE = false;
+	//			break;
+	//		}
+	//	}
+
+	//	CRCLog::Error("END Monitor Scan directory <%s>", SCAN_DIRECTORY.c_str());
+	//});
+
+	DWORD	dwWaitStatus;
+	HANDLE	dwChangeHandles[3];													//返回通知的句柄
+
+	WCHAR	lpDrive[4];
+	WCHAR	lpFile[_MAX_FNAME];
+	WCHAR	lpExt[_MAX_EXT];
+
+	_wsplitpath_s(lpdir, lpDrive, 4, NULL, 0, lpFile, _MAX_FNAME, lpExt, _MAX_EXT);
+
+	lpDrive[2] = '\\';
+	lpDrive[3] = '\0';
+
+	//分别监控文件名，路径名，文件内容的修改 
+	dwChangeHandles[0] = FindFirstChangeNotification(
+		lpdir,
+		TRUE,
+		FILE_NOTIFY_CHANGE_FILE_NAME); //文件名   
+	if (dwChangeHandles[0] == INVALID_HANDLE_VALUE) {
+		CRCLog::Error("dwChangeHandles[0] is invalid handle value <%d>", GetLastError());
+		exit(0);
+	}
+
+	dwChangeHandles[1] = FindFirstChangeNotification(
+		lpDrive,
+		TRUE,
+		FILE_NOTIFY_CHANGE_DIR_NAME); //路径名  
+	if (dwChangeHandles[1] == INVALID_HANDLE_VALUE) {
+		CRCLog::Error("dwChangeHandles[1] is invalid handle value <%d>", GetLastError());
+		exit(0);
+	}
+
+	dwChangeHandles[2] = FindFirstChangeNotification(
+		lpdir,
+		TRUE,
+		FILE_NOTIFY_CHANGE_LAST_WRITE); //文件内容/或者说最后保存时间  
+	if (dwChangeHandles[2] == INVALID_HANDLE_VALUE) {
+		CRCLog::Error("dwChangeHandles[2] is invalid handle value <%d>", GetLastError());
+		exit(0);
+	}
+
+	CRCLog::Info("START Monitor Scan directory <%s>", SCAN_DIRECTORY.c_str());
+
+	//改变通知已经设置完成，现在只需等待这些通知被触发，然后做相应处理
+	while (TRUE)
+	{
+		dwWaitStatus = WaitForMultipleObjects(3, dwChangeHandles, FALSE, 1111/*INFINITE 等你一万年*/);//把等待的时间设置为无限
+
+		switch (dwWaitStatus)
+		{
+			//分别监控文件名，路径名，文件内容的修改 
+		case WAIT_OBJECT_0:
+			CRCLog::Warring("--Directory (%s) changed", SCAN_DIRECTORY.c_str());
+			if (FindNextChangeNotification(dwChangeHandles[0]) == FALSE)
+				return false;
+			else
+				return true;
+			break;
+		case WAIT_OBJECT_0 + 1:
+			CRCLog::Warring("--Directory tree (%s) changed", lpDrive);
+			if (FindNextChangeNotification(dwChangeHandles[1]) == FALSE)
+				return false;
+			else
+				return true;
+			break;
+		case WAIT_OBJECT_0 + 2:
+			CRCLog::Warring("--Directory file (%s) changed", SCAN_DIRECTORY.c_str());
+			if (FindNextChangeNotification(dwChangeHandles[2]) == FALSE)
+				return false;
+			else
+				return true;
+			break;
+		case WAIT_TIMEOUT:
+			CRCLog::Info("--No changes in the timeout period", SCAN_DIRECTORY.c_str());
+			return false;
+		default:
+			CRCLog::Warring("--Unhandled dwWaitStatus");
+			return false;
+		}
+	}
 }

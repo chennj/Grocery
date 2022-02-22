@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="monitor_dir.cpp" />
     <ClCompile Include="src\crc_semaphore.cpp" />
     <ClCompile Include="src\crc_task.cpp" />
     <ClCompile Include="src\crc_thread.cpp" />
