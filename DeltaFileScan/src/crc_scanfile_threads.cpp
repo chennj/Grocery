@@ -96,6 +96,7 @@ void CRCScanner::ScanFileQuick(fs::path & path)
 		}
 		lock.unlock();
 	}
+
 }
 
 void
@@ -132,6 +133,7 @@ CRCScanner::ThreadOutput()
 		
 		delete pInfo;		
 	}
+
 	m_outfile.close();
 }
 
@@ -513,4 +515,9 @@ InsertByLineNumber(string filePath, string insertContent, int insertLine, int ga
 	os << buffer;
 	os.close();
 	return 0;
+}
+
+void		
+CRCScanner::Flush() {
+	m_outfile.flush();
 }

@@ -80,6 +80,7 @@ public:
 	void		ScanFileOfCurDir(vector<fs::path> & outFiles, const string& _regex);
 	uintmax_t   ComputeFileSize(const fs::path& path);
 	time_t      GetFileUpdateTime(const fs::path& path);
+	void		Flush();
 };
 
 #endif

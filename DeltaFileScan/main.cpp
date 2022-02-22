@@ -50,6 +50,7 @@ string	QuickScan(CRCScanner& scanner);
 void	ShowProcessEx();										//用作显示进度，避免无聊
 void	ShowProcess();
 time_t	StringToDatetime(std::string str);
+bool	MyCopyFile(const string& from, const string& to);		//filesystem的copy文件在文件建立之后立即拷贝出现拷贝不完整的BUG
 
 //----------------------------------------------------
 int main(int argc, char* argv[])
@@ -220,11 +221,12 @@ int main(int argc, char* argv[])
 
 	//计算增量
 	//----------------------------------------------------
-	//如果扫描目录是空目录，会出问题，所以睡一会儿
-	Sleep(1);
+	Sleep(10);
 	//如果是第一次运行，当天的全量扫描文件就是增量文件
 	if (IS_FIRST_RUN) {
 		CRCLog::Info("IS FIRST RUN");
+		//如果扫描目录是空目录，会出问题，所以睡一会儿
+		Sleep(500);
 		if (fs::exists(CUR_LIST_FILE) && fs::is_regular_file(CUR_LIST_FILE)) {
 			string deltaFileName = DELTAFILEPRE;
 			deltaFileName
@@ -235,7 +237,12 @@ int main(int argc, char* argv[])
 				CRCLog::Error("DELTA FILE [%s] IS EXIST, CANN'T COPY", deltaFileName.c_str());
 				exit(0);
 			}
-			fs::copy_file(CUR_LIST_FILE, deltaFileName);
+			//fs::copy_file(CUR_LIST_FILE, deltaFileName, fs::copy_options::overwrite_existing);
+			bool ret = MyCopyFile(CUR_LIST_FILE, deltaFileName);
+			if (!ret) {
+				CRCLog::Error("COPY FILE %s FAILED", CUR_LIST_FILE.c_str());
+				exit(0);
+			}
 		}
 		else {
 			CRCLog::Error("IS FIRST RUN, but current file [] is not exist!", CUR_LIST_FILE);
@@ -413,7 +420,8 @@ int main(int argc, char* argv[])
 					//判断目的目录是否已经建立，没有则建立
 					//否则直接拷贝
 					if (fs::exists(dPath) && fs::is_directory(dPath)){
-						auto ret = fs::copy_file(sPath, dPath + name);
+						auto ret = fs::copy_file(sPath, dPath + name, fs::copy_options::overwrite_existing);
+						//bool ret = MyCopyFile(sPath, dPath + name);
 						if (!ret) {
 							CRCLog::Error("COPY FILE %s FAILED", sPath.c_str());
 						}
@@ -424,10 +432,12 @@ int main(int argc, char* argv[])
 							CRCLog::Error("CREATE DIRECOTRYS %s FAILED", dPath.c_str());
 						}
 						else {
-							auto ret = fs::copy_file(sPath, dPath + name);
+							auto ret = fs::copy_file(sPath, dPath + name, fs::copy_options::overwrite_existing);
+							//bool ret = MyCopyFile(sPath, dPath + name);
 							if (!ret) {
 								CRCLog::Error("COPY FILE %s FAILED", sPath.c_str());
 							}
+
 						}
 					}
 
@@ -442,7 +452,8 @@ int main(int argc, char* argv[])
 
 		if (fs::exists(printFile) && fs::is_regular_file(printFile)) {
 			string dPath = targetDir + "\\" + printFile;
-			auto ret = fs::copy_file(printFile, dPath);
+			auto ret = fs::copy_file(printFile, dPath, fs::copy_options::overwrite_existing);
+			//bool ret = MyCopyFile(printFile, dPath);
 			if (!ret) {
 				CRCLog::Error("COPY FILE %s FAILED", printFile.c_str());
 			}
@@ -453,7 +464,8 @@ int main(int argc, char* argv[])
 
 		if (fs::exists(burnFile) && fs::is_regular_file(burnFile)) {
 			string dPath = targetDir + "\\" + burnFile;
-			auto ret = fs::copy_file(burnFile, dPath);
+			auto ret = fs::copy_file(burnFile, dPath, fs::copy_options::overwrite_existing);
+			//bool ret = MyCopyFile(burnFile, dPath);
 			if (!ret) {
 				CRCLog::Error("COPY FILE %s FAILED", burnFile.c_str());
 			}
@@ -551,9 +563,9 @@ void Init(int argc, char* argv[])
 	CUR_LIST_FILE		= CRCConfig::Instance().getStr("curListFile", "");
 	PRE_LIST_FILE		= CRCConfig::Instance().getStr("preListFile", "");
 	THREAD_NUM			= CRCConfig::Instance().getInt("threadNum", 4);
-	SEPRARTE_SIZE		= CRCConfig::Instance().getInt("seprarteSize", 25);
-	START_DATE			= CRCConfig::Instance().getStr("scanDir", "");
-	DELAY_TIME			= CRCConfig::Instance().getInt("delay", 5);
+	SEPRARTE_SIZE		= CRCConfig::Instance().getInt("seprarteSize", 1);
+	START_DATE			= CRCConfig::Instance().getStr("startDate", "");
+	DELAY_TIME			= CRCConfig::Instance().getInt("delay", 2);
 	TEST				= CRCConfig::Instance().getStr("test", "no");
 	CYCLE				= CRCConfig::Instance().getStr("cycle", "yes");
 	
@@ -612,4 +624,22 @@ time_t StringToDatetime(std::string str)
 	tm_.tm_isdst = 0;                          // 非夏令时。
 	time_t t_ = mktime(&tm_);                  // 将tm结构体转换成time_t格式。
 	return t_;                                 // 返回值。
+}
+
+bool MyCopyFile(const string& from, const string& to)
+{
+	ifstream source(from, ios::binary);
+	ofstream dest(to, ios::binary);
+
+	istreambuf_iterator<char> begin_source(source);
+	istreambuf_iterator<char> end_source;
+	ostreambuf_iterator<char> begin_dest(dest);
+	copy(begin_source, end_source, begin_dest);
+
+	//dest << source.rdbuf();
+
+	source.close();
+	dest.close();
+
+	return source && dest;
 }
