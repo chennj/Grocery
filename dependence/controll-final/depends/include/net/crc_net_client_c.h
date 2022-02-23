@@ -32,7 +32,7 @@ private:
     //
     int                     m_msgId = 0;
     //
-    std::string             m_groupid = "0000";
+    std::string             m_groupId = "0000";
     //
     int                     m_clientId = 0;
 private:
@@ -76,8 +76,8 @@ public:
     bool request(CRCJson& msg, NetEventCall call);
 
     //读写groupid
-    inline void set_groupid(std::string groupid){m_groupid = groupid;}
-    inline std::string& get_groupid(){return m_groupid;}
+    inline void set_groupId(std::string groupId){m_groupId = groupId;}
+    inline std::string& get_groupId(){return m_groupId;}
     //读写clientId
     inline int  get_clientId(){return m_clientId;}
     inline void set_clientId(int n){m_clientId = n;}
@@ -91,6 +91,7 @@ public:
         CRCJson msg;
         msg.Add("cmd",      cmd);
         msg.Add("type",     MSG_TYPE_REQ);
+        msg.Add("groupId",  get_groupId());
         msg.Add("msgId",    ++m_msgId);
         msg.Add("time",     CRCTime::system_clock_now());
         msg.Add("data",     data);
@@ -122,6 +123,7 @@ public:
         CRCJson ret;
         ret.Add("state",    state);
         ret.Add("msgId",    msgId);
+        ret.Add("groupId",  get_groupId());
         ret.Add("clientId", clientId);
         ret.Add("type",     MSG_TYPE_RESP);
         ret.Add("time",     CRCTime::system_clock_now());

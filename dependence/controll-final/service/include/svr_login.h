@@ -12,7 +12,7 @@
 class LoginServer
 {
 private:
-    CRCNetClientC _csCtrl;
+    CRCNetClientC m_csCtrl;
 public:
     void Init();
 
@@ -24,6 +24,8 @@ private:
     void onopen_csCtrl(CRCNetClientC* client, CRCJson& msg);
 
     void cs_msg_login(CRCNetClientC* client, CRCJson& msg);
+    void cs_msg_register(CRCNetClientC* client, CRCJson& msg);
+    void cs_msg_change_pw(CRCNetClientC* client, CRCJson& msg);
 };
 
 #endif

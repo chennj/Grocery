@@ -81,24 +81,26 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         return;
     }
 
+    /*
     int msgId = 0;
     if (!json.Get("msgId", msgId))
     {
-        CRCLog_Error("not found key<%s>.", "msgId");
+        CRCLog_Error("not found key<msgId>.");
         return;
     }
 
     time_t time = 0;
     if (!json.Get("time", time))
     {
-        CRCLog_Error("not found key<%s>.", "time");
+        CRCLog_Error("not found key<time>.");
         return;
     }
+    */
 
-    std::string groupid;
-    if (!json.Get("groupid", groupid))
+    std::string groupId;
+    if (!json.Get("groupId", groupId))
     {
-        CRCLog_Error("not found key<%s>.", "groupid");
+        CRCLog_Error("not found key<groupId>.");
         return;
     }
 
@@ -256,12 +258,20 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         }
 
         //网关本地支持的指令
-        if (on_net_msg_do(pServer, pWSClient, cmd, json))
+        if (on_net_msg_do(pServer, pWSClient, cmd, json)){
             return;
+        }
 
+        //服务提供的服务，需要分组
         if (pWSClient->is_cc_link() || pWSClient->is_ss_link())
         {
-            on_other_msg(pServer, pWSClient, cmd, json);
+            std::string gpidcmd = groupId + ":" + cmd;
+            on_other_msg(pServer, pWSClient, gpidcmd, json);
+        }
+        //for test ignore check
+        else{
+            std::string gpidcmd = groupId + ":" + cmd;
+            on_other_msg(pServer, pWSClient, gpidcmd, json);
         }
 
         return;

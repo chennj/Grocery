@@ -5,6 +5,7 @@
 ** Date         : 2022-02-15
 ** Description  : 增量文件扫描
 ******************************************************/ 
+#if 0
 #include "crc_log.h"
 #include "crc_config.h"
 #include "crc_scanfile_threads.h"
@@ -539,6 +540,7 @@ int main(int argc, char* argv[])
 	if (CYCLE.compare("yes") == 0) {
 		size_t odt = DELAY_TIME;
 		while (DELAY_TIME--) {
+			CRCLog::Info("AFTER (%d) MINUTES to the next scan", DELAY_TIME+1);
 			Sleep(1000 * 60);
 		}
 		DELAY_TIME = odt;
@@ -780,7 +782,7 @@ bool IsDirectoryChangging()
 	//改变通知已经设置完成，现在只需等待这些通知被触发，然后做相应处理
 	while (TRUE)
 	{
-		dwWaitStatus = WaitForMultipleObjects(3, dwChangeHandles, FALSE, 1111/*INFINITE 等你一万年*/);//把等待的时间设置为无限
+		dwWaitStatus = WaitForMultipleObjects(3, dwChangeHandles, FALSE, 2333/*INFINITE 等你一万年*/);//把等待的时间设置为无限
 
 		switch (dwWaitStatus)
 		{
@@ -815,3 +817,4 @@ bool IsDirectoryChangging()
 		}
 	}
 }
+#endif

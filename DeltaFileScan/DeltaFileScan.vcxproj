@@ -15,6 +15,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="lock_dir.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="monitor_dir.cpp" />
     <ClCompile Include="src\crc_semaphore.cpp" />

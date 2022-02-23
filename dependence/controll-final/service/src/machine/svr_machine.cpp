@@ -25,7 +25,7 @@ MachineServer::Init()
     m_thread_pool.start();
 
     //连接总控,注册服务
-    m_csCtrl.set_groupid("0001");
+    m_csCtrl.set_groupId("0001");
 
     m_csCtrl.connect("csCtrl","ws://192.168.137.129:4567");
 

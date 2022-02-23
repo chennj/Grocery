@@ -37,7 +37,7 @@ GenController::cs_msg_heart(CRCWorkServer* server, CRCNetClientS* client, CRCJso
 void 
 GenController::ss_reg_api(CRCWorkServer* server, CRCNetClientS* client, CRCJson& msg)
 {
-    auto gpid   = msg("groupid");   
+    auto gpid   = msg("groupId");   
     auto sskey  = msg["data"]("sskey");
     auto sskey_local = CRCConfig::Instance().getStr("sskey", "ssmm00@123456");
     if (sskey != sskey_local)
@@ -93,17 +93,17 @@ GenController::on_other_msg(CRCWorkServer* server, CRCNetClientS* client, std::s
     if (STATE_CODE_UNDEFINE_CMD == ret)
     {
         CRCLog_Info("on_other_msg: transfer not found cmd<%s>.", cmd.c_str());
-        client->response(msg, "undefine cmd!", state_code_undefine_cmd);
+        client->response(msg, "undefine cmd!", STATE_CODE_UNDEFINE_CMD);
     }
     else if (STATE_CODE_SERVER_BUSY == ret)
     {
         CRCLog_Info("on_other_msg: server busy! cmd<%s>.", cmd.c_str());
-        client->response(msg, "server busy!", state_code_server_busy);
+        client->response(msg, "server busy!", STATE_CODE_SERVER_BUSY);
     }
     else if (STATE_CODE_SERVER_OFF == ret)
     {
         CRCLog_Info("on_other_msg: server offline! cmd<%s>.", cmd.c_str());
-        client->response(msg, "server offline!", state_code_server_off);
+        client->response(msg, "server offline!", STATE_CODE_SERVER_OFF);
     }
 }
 

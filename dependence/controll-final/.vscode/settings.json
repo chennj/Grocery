@@ -58,6 +58,11 @@
     "clang.cxxflags": [
         "-std=c++11",
         "-I${workspaceRoot}/depends/include/net/",
+        "-I${workspaceRoot}/depends/include/db/",
+        "-I${workspaceRoot}/depends/thrd-sqlite/",
+        "-I${workspaceRoot}/depends/thrd-json/",
+        "-I${workspaceRoot}/depends/thrd-sha/",
+        "-I${workspaceRoot}/depends/threadpool/",
         "-I${workspaceRoot}/dvdrw-medinfo/"
     ],
 

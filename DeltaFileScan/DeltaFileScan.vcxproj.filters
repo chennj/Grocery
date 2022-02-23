@@ -20,6 +20,7 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="monitor_dir.cpp" />
+    <ClCompile Include="lock_dir.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\crc_config.h">
