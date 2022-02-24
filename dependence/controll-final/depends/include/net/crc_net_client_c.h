@@ -56,6 +56,8 @@ public:
     //并不正真连接，连接放在run()里面
     //这里只是注册一些lamdba函数
     bool connect(const char* link_name,const char* url);
+    //
+    void connect(const char* link_name,const char* url, int s_size, int r_size);
     //启动连接，断线重连，空闲时发送心跳
     bool run(int microseconds = 1);
     //关闭客户端（即通道）

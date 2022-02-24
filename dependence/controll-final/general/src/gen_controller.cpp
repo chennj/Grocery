@@ -9,8 +9,8 @@ GenController::Init()
     m_netserver.on_broadcast_msg = std::bind(&GenController::on_broadcast_msg, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
     m_netserver.on_client_leave  = std::bind(&GenController::on_client_leave, this, std::placeholders::_1);
     
-    m_netserver.reg_msg_call("cs_msg_heart", std::bind(&GenController::cs_msg_heart, this,std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    m_netserver.reg_msg_call("ss_reg_api", std::bind(&GenController::ss_reg_api, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    m_netserver.reg_msg_call("cs_msg_heart",    std::bind(&GenController::cs_msg_heart, this,std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    m_netserver.reg_msg_call("ss_reg_api",      std::bind(&GenController::ss_reg_api, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 }
 
 void 

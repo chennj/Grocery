@@ -6,6 +6,7 @@
 
 static int InsertByLineNumber(string filePath, string insertContent, int insertLine, int gap = 1);
 static string show_dot;
+static const uintmax_t UILL = static_cast<uintmax_t>(-1);
 
 CRCScanner::CRCScanner() : m_scan_count(0), m_wait(0), m_fsscan_done(false), m_fsoutput_done(false), m_need_crc(true)
 {
@@ -72,12 +73,16 @@ CRCScanner::ScanFile(fs::path& path)
 
 void CRCScanner::ScanFileQuick(fs::path & path)
 {
-	ifstream file(path.c_str(), ios::in | ios::binary);
-	if (file.is_open())
+	if (fs::exists(path) && fs::is_regular_file(path))
 	{
 		ScanInfo* pInfo		= new ScanInfo;
 		pInfo->update_time	= GetFileUpdateTime(path);
-		pInfo->file_size	= ComputeFileSize(path);
+		uintmax_t uill		= ComputeFileSize(path);
+		if (uill == UILL) {
+			CRCLog::Error("FILE (%s) SIZE is -1, skip it.", path.c_str());
+			return;
+		}
+		pInfo->file_size	= uill;
 		pInfo->file_dir		= path.parent_path();
 		pInfo->file_name	= path.filename();
 

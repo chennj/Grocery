@@ -136,6 +136,117 @@ CRCNetClientC::connect(const char* link_name,const char* url)
     return true;
 }
 
+void 
+CRCNetClientC::connect(const char* link_name,const char* url, int s_size, int r_size)
+{
+    m_link_name = link_name;
+    m_url = url;
+
+    m_client.send_buff_size(s_size);
+    m_client.recv_buff_size(r_size);
+
+    //do
+    m_client.onopen = [this](CRCClientCWebSocket* pWSClient)
+    {
+        //CRCLog_Info("%s::CRCNetClient::connect(%s) success.", _link_name.c_str(), _url.c_str());
+        CRCJson json;
+        json.Add("link_name",   m_link_name);
+        json.Add("url",         m_url);
+        on_net_msg_do("onopen", json);
+    };
+
+    m_client.onmessage = [this](CRCClientCWebSocket* pWSClient)
+    {
+        CRCIO::WebSocketHeader& wsh = pWSClient->WebsocketHeader();
+        if (wsh.opcode == CRCIO::opcode_PONG)
+        {
+            CRCLog_Info("websocket server say: PONG");
+            return;
+        }
+
+        auto pStr = pWSClient->fetch_data();
+        std::string dataStr(pStr, wsh.len);
+        //CRCLog_Info("websocket server say: %s", dataStr.c_str());
+
+        neb::CJsonObject json;
+        if (!json.Parse(dataStr))
+        {
+            CRCLog_Error("json.Parse error : %s", json.GetErrMsg().c_str());
+            return;
+        }
+
+        int msg_type = 0;
+        if (!json.Get("type", msg_type))
+        {
+            CRCLog_Error("not found key<type>.");
+            return;
+        }
+
+        //响应
+        if (MSG_TYPE_RESP ==  msg_type)
+        {
+            int msgId = 0;
+            if (!json.Get("msgId", msgId))
+            {
+                CRCLog_Error("not found key<msgId>.");
+                return;
+            }
+
+            on_net_msg_do(msgId, json);
+            return;
+        }
+
+        //请求 or 推送
+        if (MSG_TYPE_REQ        == msg_type ||
+            MSG_TYPE_PUSH       == msg_type ||
+            MSG_TYPE_BROADCAST  == msg_type)
+        {
+            if (on_other_push && MSG_TYPE_PUSH == msg_type)
+            {//一般呢LinkGate才会有on_other_push
+                do
+                {
+                    //没有clientId
+                    //clientId和我相同的消息不需要on_other_push
+                    int clientId = 0;
+                    if (json.Get("clientId", clientId) && clientId == m_clientId)
+                        break;
+
+                    on_other_push(this, json);
+                    return;
+                } while (false);
+            }
+
+            std::string cmd;
+            if (!json.Get("cmd", cmd))
+            {
+                CRCLog_Error("not found key<cmd>.");
+                return;
+            }
+
+            on_net_msg_do(cmd, json);
+            return;
+        }
+    };
+
+    m_client.onclose = [this](CRCClientCWebSocket* pWSClient)
+    {
+        CRCJson json;
+        json.Add("link_name",   m_link_name);
+        json.Add("url",         m_url);
+
+        on_net_msg_do("onclose", json);
+    };
+
+    m_client.onerror = [this](CRCClientCWebSocket* pWSClient)
+    {
+        neb::CJsonObject json;
+        json.Add("link_name",   m_link_name);
+        json.Add("url",         m_url);
+        
+        on_net_msg_do("onerror", json);
+    };   
+}
+
 bool 
 CRCNetClientC::run(int microseconds)
 {

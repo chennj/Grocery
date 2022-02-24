@@ -3,6 +3,7 @@ DEPEND		= ../../../depends
 INCLUDE 	= \
 			-I ../../include \
 			-I ../../../depends/include/net \
+			-I ../../../depends/include/db \
 			-I ../../../depends/thrd-json \
 			-I ../../../depends/thrd-sha \
 			-I ../../../depends/thrd-sqlite \
@@ -17,6 +18,7 @@ SERVER		= loginserver
 SERVERSRC 	= \
 			svr_login_main.cpp svr_login.cpp \
 			$(SRC)/net/*.cpp \
+			$(SRC)/db/*.cpp \
 			$(DEPEND)/threadpool/crc_thread_pool.cpp \
 			$(DEPEND)/thrd-json/CJsonObject.cpp \
 			$(DEPEND)/thrd-json/cJSON.c \
@@ -36,3 +38,4 @@ clean:
 	rm -rf loginserver 
 	rm -rf *.txt
 	rm -rf *.o
+	rm -rf *.db

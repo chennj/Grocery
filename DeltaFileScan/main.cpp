@@ -5,7 +5,7 @@
 ** Date         : 2022-02-15
 ** Description  : 增量文件扫描
 ******************************************************/ 
-#if 0
+#if 1
 #include "crc_log.h"
 #include "crc_config.h"
 #include "crc_scanfile_threads.h"

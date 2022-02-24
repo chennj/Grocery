@@ -1,6 +1,6 @@
 #include <Windows.h>
 #include <stdio.h>
-#if 1
+#if 0
 //对目录进行加锁
 int main()
 {

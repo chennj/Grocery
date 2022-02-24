@@ -3,7 +3,14 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceRoot}/depends/include/net/",
+                "${workspaceRoot}/depends/include/db/",
+                "${workspaceRoot}/depends/thrd-sqlite/",
+                "${workspaceRoot}/depends/thrd-json/",
+                "${workspaceRoot}/depends/thrd-sha/",
+                "${workspaceRoot}/depends/threadpool/",
+                "${workspaceRoot}/dvdrw-medinfo/",
+                "${workspaceRoot}/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",
