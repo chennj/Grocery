@@ -309,7 +309,7 @@ CRCScanner::Scan(const string& path)
 }
 
 void		
-CRCScanner::ScanQuick(const string& path)
+CRCScanner::ScanQuick(const vector<string>& paths)
 {
 	CRCLog::Info("Quick Scan Start ");
 
@@ -321,7 +321,10 @@ CRCScanner::ScanQuick(const string& path)
 		m_thread_pool.push_back(new thread(&CRCScanner::ThreadScan, this, true));
 	}
 
-	ScanDirectoryQuick(path);
+	for (auto path : paths) {
+		CRCLog::Info("START scan %s", path.c_str());
+		ScanDirectoryQuick(path);
+	}
 
 	thread* p = new thread(&CRCScanner::ThreadOutput, this);
 	p->detach();

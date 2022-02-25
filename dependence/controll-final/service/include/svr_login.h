@@ -13,7 +13,7 @@
 class LoginServer
 {
 private:
-    CRCNetClientC   m_csCtrl;
+    CRCNetClientC   m_csGate;
     CRCDBUser       m_dbuser;
 public:
     void Init();

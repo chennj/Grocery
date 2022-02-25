@@ -74,7 +74,7 @@ public:
 
 	void        SetNeedCRC(bool need);
 	void        Scan(const string& path);
-	void		ScanQuick(const string& path);
+	void		ScanQuick(const vector<string>& paths);
 	void        ScanDirectory(fs::path directory);
 	void		ScanDirectoryQuick(fs::path directory);
 	void		ScanFileOfCurDir(vector<fs::path> & outFiles, const string& _regex);

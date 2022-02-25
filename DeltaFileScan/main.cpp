@@ -19,6 +19,7 @@
 //----------------------------------------------------
 static string	SCAN_DIRECTORY;									//扫描目录
 static string	TARGET_DIRECTORY;								//copy form SCAN_DIRECTORY to TARGET_DIRECTORY
+static string	DISC_TYPE;
 static string	CUR_LIST_FILE;									//当前全量扫描文件
 static string	PRE_LIST_FILE;									//上一次全量扫描文件
 static size_t	THREAD_NUM;										//扫描线程数
@@ -36,6 +37,7 @@ static unsigned long long	SEPRARTE_SIZE_BYTE;					//文件列表的文件数按�
 vector<fs::path>	FULLLISTFILES;
 vector<fs::path>	DELTALISTFILES;
 vector<fs::path>	MOVEFILES;
+vector<string>		SCAN_DIRS;
 
 static bool		IS_FIRST_RUN	= true;							//是否第一次运行
 static map<string, unsigned long long> FULLLISTFILEMAP;			//当前全量扫描缓存
@@ -47,15 +49,16 @@ string		SHOW_DOT;
 //CRCThread	MonitorThread;
 
 //----------------------------------------------------
-void	AppendSuffix(string & fileName);
-bool	CheckParam();
-void	Init(int argc, char* argv[]);
-string	QuickScan(CRCScanner& scanner);
-void	ShowProcessEx();										//用作显示进度，避免无聊
-void	ShowProcess();
-time_t	StringToDatetime(std::string str);
-bool	MyCopyFile(const string& from, const string& to);		//filesystem的copy文件在文件建立之后立即拷贝出现拷贝不完整的BUG
-bool	IsDirectoryChangging();
+void			AppendSuffix(string & fileName);
+bool			CheckParam();
+void			Init(int argc, char* argv[]);
+string			QuickScan(CRCScanner& scanner);
+void			ShowProcessEx();										//用作显示进度，避免无聊
+void			ShowProcess();
+time_t			StringToDatetime(std::string str);
+bool			MyCopyFile(const string& from, const string& to);		//filesystem的copy文件在文件建立之后立即拷贝出现拷贝不完整的BUG
+bool			IsDirectoryChangging(const string& dir);
+vector<string>	Split(const string &str, const string &pattern);
 //----------------------------------------------------
 int main(int argc, char* argv[])
 {
@@ -205,7 +208,9 @@ int main(int argc, char* argv[])
 							//if (FullListFileMap.find(name) != FullListFileMap.end()) {
 							//	CRCLog::Info("duplicate key name: %s", name.c_str());
 							//}
-							FULLLISTFILEMAP[name] = size;
+							//FULLLISTFILEMAP[name] = size;
+							//使用 文件路径|更新时间|文件大小 作为键值
+							FULLLISTFILEMAP[line] = size;
 						}
 						CRCLog::Info("map size: %d, count: %d", FULLLISTFILEMAP.size(), SHOW_COUNT);
 						fin.close();
@@ -220,16 +225,19 @@ int main(int argc, char* argv[])
 	//如果当前文件不存在，扫描
 	//----------------------------------------------------
 	if (!cur_list_file_exist) {
-		size_t wait_count = 3;
-		while (IsDirectoryChangging()) {
-			CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING ... ");
-			if (wait_count--) {
-				continue;
-			}
-			else {
-				MOVEFILES.clear();
-				CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING too long, goto NEXT ");
-				goto END;
+		for (string dir : SCAN_DIRS)
+		{
+			size_t wait_count = 3;
+			while (IsDirectoryChangging(dir)) {
+				CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING ... ");
+				if (wait_count--) {
+					continue;
+				}
+				else {
+					MOVEFILES.clear();
+					CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING too long, goto NEXT ");
+					goto END;
+				}
 			}
 		}
 		CUR_LIST_FILE = QuickScan(Scanner);
@@ -303,13 +311,14 @@ int main(int argc, char* argv[])
 				continue;
 			}
 			//检查当前扫描文件中的数据是否已经在缓存中
-			if (FULLLISTFILEMAP.find(name) == FULLLISTFILEMAP.end()) {
+			//比较 文件路径|更新时间|文件大小 是否一致
+			if (FULLLISTFILEMAP.find(line) == FULLLISTFILEMAP.end()) {
 				//CRCLog::Info("delta file name: %s, size: %d", name.c_str(), size);
-				ScanInfo* pInfo = new ScanInfo;
-				pInfo->file_full_name = name;
-				pInfo->file_size = size;
+				ScanInfo* pInfo			= new ScanInfo;
+				pInfo->file_full_name	= name;
+				pInfo->file_size		= size;
 				deltaQueue.push(pInfo);
-				FULLLISTFILEMAP[name] = size;
+				FULLLISTFILEMAP[line]	= size;
 			}
 
 			ShowProcess();
@@ -412,16 +421,18 @@ int main(int argc, char* argv[])
 	CRCLog::Info("Ready to detect whether there are qualified Delta files, SIZE: %d", MOVEFILES.size());
 	if (!MOVEFILES.empty())
 	{
-		size_t wait_count = 3;
-		while (IsDirectoryChangging()) {
-			CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING ... ");
-			if (wait_count--) {
-				continue;
-			}
-			else {
-				MOVEFILES.clear();
-				CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING too long, goto NEXT ");
-				goto END;
+		for (string dir : SCAN_DIRS) {
+			size_t wait_count = 3;
+			while (IsDirectoryChangging(dir)) {
+				CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING ... ");
+				if (wait_count--) {
+					continue;
+				}
+				else {
+					MOVEFILES.clear();
+					CRCLog::Warring("SCAN DIRECOTRY IS CHANGING, WAITTING too long, goto NEXT ");
+					goto END;
+				}
 			}
 		}
 
@@ -485,6 +496,37 @@ int main(int argc, char* argv[])
 		string printFile	= "printfile.html";
 		string burnFile		= "MIDASBURN.txt";
 
+		time_t	tt			= time(0);
+
+		{
+			char tmpdate[32] = { 0 };
+			strftime(tmpdate, sizeof(tmpdate), "%Y%m%d%H%M%S", localtime(&tt));
+			ofstream fout(printFile);
+
+			fout << "<!DOCTYPE HTML>" << endl;
+			fout << "<html>" << endl;
+			fout << "<head>" << endl;
+			fout << "<meta http-equiv=\"Content - Type\" content=\"text / html; charset = utf - 8\"/>" << endl;
+			fout << "</head>" << endl;
+			fout << "<body>" << endl;
+			fout << "<div style=\"line - height:15px; font - size:16px; padding:60px 5px 5px 160px; font - family:'宋体'; text - align:center; \">" << endl;
+			fout << "<p>盘面打印内容是:陆军军医大学教学考评中心考试档案</p>" << endl;
+			fout << "<p>" << tmpdate << "</p>" << endl;
+			fout << "</div>" << endl;
+			fout << "</body>" << endl;
+			fout << "</html>" << endl;
+			fout.close();
+		}
+
+		{
+			char tmpdate[32] = { 0 };
+			strftime(tmpdate, sizeof(tmpdate), "%Y%m%d%H%M%S", localtime(&tt));
+			ofstream fout(burnFile);
+			fout << DISC_TYPE << endl;
+			fout << "LJJYDXJXKPZXKSDA" << tmpdate << endl;
+			fout.close();
+		}
+
 		if (fs::exists(printFile) && fs::is_regular_file(printFile)) {
 			string dPath = targetDir + "\\" + printFile;
 			auto ret = fs::copy_file(printFile, dPath, fs::copy_options::overwrite_existing);
@@ -494,7 +536,7 @@ int main(int argc, char* argv[])
 			}
 		}
 		else {
-			CRCLog::Error("PRINT FILE %s IS NOT EXIST", printFile.c_str());
+			CRCLog::Warring("PRINT FILE %s IS NOT EXIST", printFile.c_str());
 		}
 
 		if (fs::exists(burnFile) && fs::is_regular_file(burnFile)) {
@@ -506,7 +548,7 @@ int main(int argc, char* argv[])
 			}
 		}
 		else {
-			CRCLog::Error("BURN FILE %s IS NOT EXIST", burnFile.c_str());
+			CRCLog::Warring("BURN FILE %s IS NOT EXIST", burnFile.c_str());
 		}
 
 	}
@@ -561,10 +603,17 @@ void AppendSuffix(string & fileName)
 
 bool CheckParam()
 {
-	if (SCAN_DIRECTORY.empty() || !fs::exists(SCAN_DIRECTORY) || !fs::is_directory(SCAN_DIRECTORY) )
-	{
-		CRCLog::Error("SCAN directory does not exist OR no access");
+	if (SCAN_DIRECTORY.empty()) {
+		CRCLog::Error("SCAN directory does not exist");
 		return false;
+	}
+	SCAN_DIRS = Split(SCAN_DIRECTORY,";");
+	for (string dir : SCAN_DIRS) {
+		if (!fs::exists(dir) || !fs::is_directory(dir))
+		{
+			CRCLog::Error("SCAN directory (%s) does not exist OR no access", dir.c_str());
+			return false;
+		}
 	}
 
 	if (TARGET_DIRECTORY.empty() || !fs::exists(TARGET_DIRECTORY) || !fs::is_directory(TARGET_DIRECTORY))
@@ -602,11 +651,12 @@ bool CheckParam()
 void Init(int argc, char* argv[])
 {
 	//读取参数
-	SCAN_DIRECTORY		= CRCConfig::Instance().getStr("scanDir", "D:\\empty");
-	TARGET_DIRECTORY	= CRCConfig::Instance().getStr("targetDir", "D:\\temp");
+	SCAN_DIRECTORY		= CRCConfig::Instance().getStr("scanDir", "D:\\temp;D:\\test");
+	TARGET_DIRECTORY	= CRCConfig::Instance().getStr("targetDir", "D:\\empty");
 	CUR_LIST_FILE		= CRCConfig::Instance().getStr("curListFile", "");
 	PRE_LIST_FILE		= CRCConfig::Instance().getStr("preListFile", "");
 	THREAD_NUM			= CRCConfig::Instance().getInt("threadNum", 4);
+	DISC_TYPE			= CRCConfig::Instance().getStr("dickType", "BD128");
 	SEPRARTE_SIZE		= CRCConfig::Instance().getInt("seprarteSize", 1);
 	START_DATE			= CRCConfig::Instance().getStr("startDate", "");
 	DELAY_TIME			= CRCConfig::Instance().getInt("delay", 2);
@@ -620,9 +670,8 @@ void Init(int argc, char* argv[])
 
 string QuickScan(CRCScanner& scanner)
 {
-	CRCLog::Info("START scan %s", SCAN_DIRECTORY.c_str());
 	std::chrono::time_point<std::chrono::high_resolution_clock> begin = std::chrono::high_resolution_clock::now();
-	scanner.ScanQuick(SCAN_DIRECTORY);
+	scanner.ScanQuick(SCAN_DIRS);
 	//scanner.Scan(SCAN_DIRECTORY);
 	auto count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - begin).count() * 0.000001;
 	CRCLog::Info("SCAN <%s> elapse time: %f(s)", SCAN_DIRECTORY.c_str(), count);
@@ -688,9 +737,9 @@ bool MyCopyFile(const string& from, const string& to)
 	return source && dest;
 }
 
-bool IsDirectoryChangging()
+bool IsDirectoryChangging(const string& dir)
 {
-	std::wstring stemp	= std::wstring(SCAN_DIRECTORY.begin(), SCAN_DIRECTORY.end());
+	std::wstring stemp	= std::wstring(dir.begin(), dir.end());
 	LPCWSTR lpdir		= stemp.c_str();
 	
 	//下面的代码会和扫描目录的程序发送冲突，产生多线程竞态
@@ -777,7 +826,7 @@ bool IsDirectoryChangging()
 		exit(0);
 	}
 
-	CRCLog::Info("START Monitor Scan directory <%s>", SCAN_DIRECTORY.c_str());
+	CRCLog::Info("START Monitor Scan directory <%s>", dir.c_str());
 
 	//改变通知已经设置完成，现在只需等待这些通知被触发，然后做相应处理
 	while (TRUE)
@@ -788,7 +837,7 @@ bool IsDirectoryChangging()
 		{
 			//分别监控文件名，路径名，文件内容的修改 
 		case WAIT_OBJECT_0:
-			CRCLog::Warring("--Directory (%s) changed", SCAN_DIRECTORY.c_str());
+			CRCLog::Warring("--Directory (%s) changed", dir.c_str());
 			if (FindNextChangeNotification(dwChangeHandles[0]) == FALSE)
 				return false;
 			else
@@ -816,5 +865,26 @@ bool IsDirectoryChangging()
 			return false;
 		}
 	}
+}
+
+vector<string> Split(const string &str, const string &pattern)
+{
+	vector<string> res;
+	if (str == "")
+		return res;
+	//在字符串末尾也加入分隔符，方便截取最后一段
+	string strs = str + pattern;
+	size_t pos = strs.find(pattern);
+
+	while (pos != strs.npos)
+	{
+		string temp = strs.substr(0, pos);
+		res.push_back(temp);
+		//去掉已分割的字符串,在剩下的字符串中进行分割
+		strs = strs.substr(pos + 1, strs.size());
+		pos = strs.find(pattern);
+	}
+
+	return res;
 }
 #endif

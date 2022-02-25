@@ -7,31 +7,31 @@ LoginServer::Init()
 {
     m_dbuser.init();
 
-    m_csCtrl.set_groupId("0001");
+    m_csGate.set_groupId("0001");
 
-    m_csCtrl.connect("csCtrl","ws://192.168.137.129:4567", 1024 * 1024 * 10, 1024 * 1024 * 10);
+    m_csGate.connect("csCtrl","ws://192.168.137.129:4567", 1024 * 1024 * 10, 1024 * 1024 * 10);
 
-    m_csCtrl.reg_msg_call("onopen", std::bind(&LoginServer::onopen_csCtrl, this, std::placeholders::_1, std::placeholders::_2));
+    m_csGate.reg_msg_call("onopen", std::bind(&LoginServer::onopen_csCtrl, this, std::placeholders::_1, std::placeholders::_2));
 
-    m_csCtrl.reg_msg_call("cs_msg_login",           std::bind(&LoginServer::cs_msg_login,           this, std::placeholders::_1, std::placeholders::_2));
-    m_csCtrl.reg_msg_call("cs_msg_register",        std::bind(&LoginServer::cs_msg_register,        this, std::placeholders::_1, std::placeholders::_2));
-    m_csCtrl.reg_msg_call("cs_msg_change_pw",       std::bind(&LoginServer::cs_msg_change_pw,       this, std::placeholders::_1, std::placeholders::_2));
-    m_csCtrl.reg_msg_call("cs_msg_login_by_token",  std::bind(&LoginServer::cs_msg_login_by_token,  this, std::placeholders::_1, std::placeholders::_2));
+    m_csGate.reg_msg_call("cs_msg_login",           std::bind(&LoginServer::cs_msg_login,           this, std::placeholders::_1, std::placeholders::_2));
+    m_csGate.reg_msg_call("cs_msg_register",        std::bind(&LoginServer::cs_msg_register,        this, std::placeholders::_1, std::placeholders::_2));
+    m_csGate.reg_msg_call("cs_msg_change_pw",       std::bind(&LoginServer::cs_msg_change_pw,       this, std::placeholders::_1, std::placeholders::_2));
+    m_csGate.reg_msg_call("cs_msg_login_by_token",  std::bind(&LoginServer::cs_msg_login_by_token,  this, std::placeholders::_1, std::placeholders::_2));
     
-    m_csCtrl.reg_msg_call("ss_msg_client_exit",     std::bind(&LoginServer::ss_msg_client_exit,     this, std::placeholders::_1, std::placeholders::_2));
-    m_csCtrl.reg_msg_call("ss_msg_user_exit",       std::bind(&LoginServer::ss_msg_user_exit,       this, std::placeholders::_1, std::placeholders::_2));
+    m_csGate.reg_msg_call("ss_msg_client_exit",     std::bind(&LoginServer::ss_msg_client_exit,     this, std::placeholders::_1, std::placeholders::_2));
+    m_csGate.reg_msg_call("ss_msg_user_exit",       std::bind(&LoginServer::ss_msg_user_exit,       this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void 
 LoginServer::Run()
 {
-    m_csCtrl.run(1);
+    m_csGate.run(1);
 }
 
 void 
 LoginServer::Close()
 {
-    m_csCtrl.close();
+    m_csGate.close();
 }
 
 void 
