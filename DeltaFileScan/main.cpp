@@ -6,6 +6,12 @@
 ** Description  : 增量文件扫描
 ******************************************************/ 
 #if 1
+
+#pragma data_seg("intance_data")
+volatile unsigned int g_instance = 0;//共享数据必须初始化，否则微软编译器会把没有初始化的数据放到.BSS段中，从而导致多个进程之间的共享行为失败。
+#pragma data_seg()
+#pragma comment(linker,"/SECTION:intance_data,RWS")
+
 #include "crc_log.h"
 #include "crc_config.h"
 #include "crc_scanfile_threads.h"
@@ -20,6 +26,8 @@
 static string	SCAN_DIRECTORY;									//扫描目录
 static string	TARGET_DIRECTORY;								//copy form SCAN_DIRECTORY to TARGET_DIRECTORY
 static string	DISC_TYPE;
+static string	PRINT_LABEL;
+static string	VOLUME_LABEL;
 static string	CUR_LIST_FILE;									//当前全量扫描文件
 static string	PRE_LIST_FILE;									//上一次全量扫描文件
 static size_t	THREAD_NUM;										//扫描线程数
@@ -62,6 +70,14 @@ vector<string>	Split(const string &str, const string &pattern);
 //----------------------------------------------------
 int main(int argc, char* argv[])
 {
+	//单一进程
+	if (g_instance > 0) {
+		cout << "An application has been started" << endl;
+		return -1;
+	}
+
+	InterlockedExchangeAdd(&g_instance, 1);
+
 	//建立日志目录
 	if (!fs::exists("log") || !fs::is_directory("log")) {
 		fs::create_directories("log");
@@ -444,9 +460,13 @@ int main(int argc, char* argv[])
 		string	targetDir	= TARGET_DIRECTORY + "\\";
 		time_t	t			= time(0);
 		char	tmp[32]		= { 0 };
-		strftime(tmp, sizeof(tmp), "-%Y%m%d %H%M00", localtime(&t));
+		strftime(tmp, sizeof(tmp), "%Y%m%d %H%M00", localtime(&t));
+		string  src;
+		for (string s : SCAN_DIRS) {
+			src.append(s.substr(3)).append("-");
+		}
 		targetDir
-			.append(SCAN_DIRECTORY.substr(3))
+			.append(src)
 			.append(tmp);
 		//拷贝原扫描路径的增量文件到目的目录中
 		for (auto entry : MOVEFILES) 
@@ -500,7 +520,7 @@ int main(int argc, char* argv[])
 
 		{
 			char tmpdate[32] = { 0 };
-			strftime(tmpdate, sizeof(tmpdate), "%Y%m%d%H%M%S", localtime(&tt));
+			strftime(tmpdate, sizeof(tmpdate), "%Y-%m-%d %H:%M:%S", localtime(&tt));
 			ofstream fout(printFile);
 
 			fout << "<!DOCTYPE HTML>" << endl;
@@ -510,7 +530,7 @@ int main(int argc, char* argv[])
 			fout << "</head>" << endl;
 			fout << "<body>" << endl;
 			fout << "<div style=\"line - height:15px; font - size:16px; padding:60px 5px 5px 160px; font - family:'宋体'; text - align:center; \">" << endl;
-			fout << "<p>盘面打印内容是:陆军军医大学教学考评中心考试档案</p>" << endl;
+			fout << "<p>" << PRINT_LABEL.c_str() << "</p>" << endl;
 			fout << "<p>" << tmpdate << "</p>" << endl;
 			fout << "</div>" << endl;
 			fout << "</body>" << endl;
@@ -523,9 +543,11 @@ int main(int argc, char* argv[])
 			strftime(tmpdate, sizeof(tmpdate), "%Y%m%d%H%M%S", localtime(&tt));
 			ofstream fout(burnFile);
 			fout << DISC_TYPE << endl;
-			fout << "LJJYDXJXKPZXKSDA" << tmpdate << endl;
+			fout << VOLUME_LABEL.c_str() << tmpdate << endl;
 			fout.close();
 		}
+
+		Sleep(10);
 
 		if (fs::exists(printFile) && fs::is_regular_file(printFile)) {
 			string dPath = targetDir + "\\" + printFile;
@@ -588,6 +610,8 @@ int main(int argc, char* argv[])
 		DELAY_TIME = odt;
 		goto CYCLE;
 	}
+
+	InterlockedExchangeAdd(&g_instance, -1);
 
     return 0;
 }
@@ -656,7 +680,9 @@ void Init(int argc, char* argv[])
 	CUR_LIST_FILE		= CRCConfig::Instance().getStr("curListFile", "");
 	PRE_LIST_FILE		= CRCConfig::Instance().getStr("preListFile", "");
 	THREAD_NUM			= CRCConfig::Instance().getInt("threadNum", 4);
-	DISC_TYPE			= CRCConfig::Instance().getStr("dickType", "BD128");
+	DISC_TYPE			= CRCConfig::Instance().getStr("discType", "BD128");
+	PRINT_LABEL			= CRCConfig::Instance().getStr("printLabel", "美佳达");
+	VOLUME_LABEL		= CRCConfig::Instance().getStr("volumeLabel", "MJD");
 	SEPRARTE_SIZE		= CRCConfig::Instance().getInt("seprarteSize", 1);
 	START_DATE			= CRCConfig::Instance().getStr("startDate", "");
 	DELAY_TIME			= CRCConfig::Instance().getInt("delay", 2);
