@@ -45,6 +45,7 @@
 #define MAILBOX_IMPORT_DISC         "mailbox import disc"
 #define PRINTER_EXPORT_DISC         "printer export disc"
 #define PRINTER_IMPORT_DISC         "printer import disc"
+#define MOVE_DISC_TO_CDROM          "move disc to cdrom"
 
 #define MAILBOXIN_TRANSFER          "MLIN,0x6001,\n"
 #define MAILBOXOUT_TRANSFER         "MLOU,0x6001,\n"
@@ -161,6 +162,8 @@ protected:
     std::condition_variable m_condition;
     //动作执行互斥量
     std::mutex              m_action_mtx;
+    //设置属性互斥
+    std::mutex              m_set_mtx;
 public:
     virtual ~MachineServer();
 
@@ -206,6 +209,10 @@ protected:
     bool wait_for(const std::string& key, const std::string& msg, RetMessage*& pRmOut, uint32_t timeout = 60 * 1000);
     //移动光盘到光驱
     int  move_disc2cdrom(int cd_addr);
+    //移动光盘到光驱
+    int  move_auto_disc2cdrom(CRCJson * pJson);
+    //获取空白光盘
+    int  get_blank_disc(int cd_addr, char*mediatype, unsigned long long minSize, bool isSet=true);
     //检查光驱状态
     //返回 0：盘托已打开。-1：错误。
     int  check_cdrom_status(const char *cdrom_dev);

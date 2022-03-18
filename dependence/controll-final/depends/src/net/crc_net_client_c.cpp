@@ -347,7 +347,7 @@ CRCNetClientC::on_net_msg_do(int msgId, CRCJson& msgJson)
 }
 
 bool 
-CRCNetClientC::transfer(neb::CJsonObject& msg)
+CRCNetClientC::transfer(CRCJson& msg)
 {
     std::string retStr = msg.ToString();
     if (SOCKET_ERROR == m_client.writeText(retStr.c_str(), retStr.length()))

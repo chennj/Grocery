@@ -1,6 +1,6 @@
-SRC 		= ../../depends/src
-DEPEND		= ../../depends
-INCLUDE 	= -I ../include -I ../../depends/include/net -I ../../depends/thrd-json -I ../../depends/thrd-sha
+SRC 		= ../depends/src
+DEPEND		= ../depends
+INCLUDE 	= -I ../depends/include/net -I ../depends/thrd-json -I ../depends/thrd-sha
 
 CXX			= g++
 LIBS		= -lpthread
@@ -14,9 +14,9 @@ SERVERSRC 	= gate_server_main.cpp gate_server.cpp \
 			$(DEPEND)/thrd-sha/sha1.cpp
 
 all: $(SERVER)
-controller:
+$(SERVER):
 	$(CXX) -g -c -std=c++11 $(SERVERSRC) $(INCLUDE) $(LIBS) $(FLAGS);
-	$(CXX) -g -o controller *.o $(LIBS);
+	$(CXX) -g -o $(SERVER) *.o $(LIBS);
 
 .PHONY: clean
 clean:

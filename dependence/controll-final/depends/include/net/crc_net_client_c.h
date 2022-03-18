@@ -88,6 +88,20 @@ public:
 
 public:
     template<typename vT>
+    bool request(const std::string& cmd, const std::string& groupId, const vT& data)
+    {
+        CRCJson msg;
+        msg.Add("cmd",      cmd);
+        msg.Add("type",     MSG_TYPE_REQ);
+        msg.Add("groupId",  groupId);
+        msg.Add("msgId",    ++m_msgId);
+        msg.Add("time",     CRCTime::system_clock_now());
+        msg.Add("data",     data);
+
+        return transfer(msg);
+    }
+
+    template<typename vT>
     bool request(const std::string& cmd, const vT& data)
     {
         CRCJson msg;
@@ -102,9 +116,27 @@ public:
     }
 
     template<typename vT>
+    bool request(const std::string& cmd, const std::string& groupId, const vT& data, NetEventCall call)
+    {
+        if (!request(cmd, groupId, data))
+        {
+            return false;
+        }
+
+        if (call != nullptr)
+        {
+            NetEventCallData calldata;
+            calldata.callFun            = call;
+            calldata.dt                 = CRCTime::system_clock_now();
+            m_map_request_call[m_msgId] = calldata;
+        }
+        return true;
+    }
+
+    template<typename vT>
     bool request(const std::string& cmd, const vT& data, NetEventCall call)
     {
-        if (!request(cmd, data))
+        if (!request(cmd,data))
         {
             return false;
         }
@@ -135,7 +167,7 @@ public:
     }
 
     template<typename vT>
-    void response(neb::CJsonObject& msg, const vT& data, int state = STATE_CODE_OK)
+    void response(CRCJson& msg, const vT& data, int state = STATE_CODE_OK)
     {
         //通用基础字段获取与验证
         int clientId = 0;

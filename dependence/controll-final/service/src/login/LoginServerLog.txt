@@ -1,0 +1,10 @@
+Info [2022-3-10 8:43:55]CRCLog::setLogPath success,<LoginServerLog.txt,w>
+Info [2022-3-10 8:43:55]DBUser::init(user.db.user_info) success.
+Info [2022-3-10 8:43:55]192.168.8.109 ipv4: 192.168.8.109
+Info [2022-3-10 8:43:55]connet2ip(192.168.8.109,4567)
+Warring [2022-3-10 8:43:55]csCtrl::CRCNetClientC::connect(ws://192.168.8.109:4567) success.
+Info [2022-3-10 8:43:55]CRCClientCWebSocket::handshake, Good.
+Info [2022-3-10 8:43:55]LoginServer::ss_reg_api return: {"ClientId":10}
+Info [2022-3-10 8:45:55]LoginServer::cs_msg_register
+Info [2022-3-10 8:46:15]LoginServer::cs_msg_register
+Info [2022-3-10 8:46:37]LoginServer::cs_msg_register

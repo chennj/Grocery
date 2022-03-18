@@ -14,12 +14,14 @@
 #include <stdlib.h>
 #include <dirent.h>
 #include <pthread.h>
+#include <blkid/blkid.h>
 
 namespace SVRUTILS
 {
     #define MAX_SIZE        1024
     #define MAXMEDIA        12*50
     #define facto           98llu
+    #define PATH_LENGTH_MAX 1024
     #define ROUDNUP(x,y)    (((x+(y-1))/y)*y)
 
     //保存光盘在刻录后是否没有关闭轨道 ==1 就是没有关闭轨道
@@ -402,6 +404,105 @@ namespace SVRUTILS
             fclose(pfile);
             pfile=NULL;
         }
+        return 0;
+    }
+
+    static void SplitMediaTypeId(char* media_type, char* media_id)
+    {
+        char* p = strchr(media_type, ',');
+        if(p != NULL){
+                        memset(media_id,0,256);
+                strncpy(media_id, p+1,255);   
+                *p = '\0';
+        }
+        else{
+                memset(media_id,0,256);   
+        }
+    }
+
+    static long long GetFileSize(const char *path)  
+    {  
+        DIR *dir;
+        struct dirent * ptr;
+        char subpath[PATH_LENGTH_MAX];
+        long long retsize = 0;
+        struct stat statbuff;
+        if (stat(path, &statbuff) < 0){
+            perror(path);
+            return -1;  
+        }else{
+            //printf("dir=%s:st_size=%lld,st_blksize=%lu,st_blocks=%lu\n",path,statbuff.st_size,statbuff.st_blksize,statbuff.st_blocks);
+            if(S_ISDIR(statbuff.st_mode))
+            //是目录
+            {
+                dir = opendir(path);    //打开目录
+                if(dir == NULL)
+                {
+                        perror("fail to open dir");
+                        return -1;
+                }
+                while((ptr = readdir(dir)) != NULL)
+                {
+                    //顺序读取每一个目录项；
+                    //跳过“..”和“.”两个目录
+                    if(strcmp(ptr->d_name,".") == 0 || strcmp(ptr->d_name,"..") == 0)
+                    {
+                        continue;
+                    }
+                    
+                    sprintf(subpath,"%s/%s",path,ptr->d_name);
+                    retsize += GetFileSize(subpath);
+                }
+                closedir(dir);
+            }
+            //是文件
+            else{
+                retsize = retsize+statbuff.st_size;
+            }
+        }
+
+        return retsize;
+    }
+
+    static int GetFsTypeLabel(char*DevName, char*fstype, char*label)
+    {
+        blkid_probe pr;
+        const char *name;
+        
+        if (!(DevName&&fstype&&label))
+        {
+            return -1;
+        }
+        pr = blkid_new_probe_from_filename(DevName);
+        if (!pr) {
+            printf("Failed to open %s", DevName);
+            return -1;
+        }
+        
+        blkid_do_probe(pr);
+        if (blkid_probe_lookup_value(pr, "TYPE", &name, NULL) == 0)
+        {
+            //printf("type=%s\n", name);
+            if (strlen(name)> 0)
+            {
+                memset(fstype,0,128);
+                strncpy(fstype,name,127);    //V3.2.1 20180614   //strcpy(fstype,name);
+            }else{
+                blkid_free_probe(pr);
+                return -1;
+            }
+        }
+        
+        if (blkid_probe_lookup_value(pr, "LABEL", &name, NULL) == 0)
+        {
+            if (strlen(name) > 0)
+            {
+                memset(label,0,128);
+                strncpy(label,name,127);   //V3.2.1 20180614   //strcpy(label,name);
+            }
+        }
+        
+        blkid_free_probe(pr);
         return 0;
     }
 }

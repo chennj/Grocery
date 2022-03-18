@@ -52,7 +52,11 @@
         "string": "cpp",
         "cstring": "cpp",
         "iostream": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "unordered_set": "cpp",
+        "cinttypes": "cpp",
+        "bitset": "cpp",
+        "regex": "cpp"
     },
     "editor.minimap.enabled": false,
     "clang.cxxflags": [

@@ -309,6 +309,11 @@ MachineServer::do_action(MachineTaskType taskType, CRCJson * pJson)
                 //光盘送打印机
                 m_thread_pool.exec(std::bind(&MachineServer::printer_import_disc_manual, this, std::placeholders::_1), pMsg);
             }
+
+            if (command.compare(MOVE_DISC_TO_CDROM) == 0){
+                //送光盘至空闲光驱
+                m_thread_pool.exec(std::bind(&MachineServer::move_auto_disc2cdrom, this, std::placeholders::_1), pMsg);
+            }
             break;
         }
         case AUTOINVENTORY:
@@ -915,6 +920,217 @@ MachineServer::move_disc2cdrom(int cd_addr)
     return cdrom_addr;
 }
 
+int
+MachineServer::move_auto_disc2cdrom(CRCJson * pJson)
+{
+    int  try_num = 1;
+    int  ret = -1;
+    int  cd_addr = 0;
+    int  cdrom_addr = 0;
+    char cmd_buf[256];
+    char label[128];
+    char fstype[128];
+    CRCJson retJson;
+
+	memset(label,0,sizeof(label));
+	memset(fstype,0,sizeof(fstype));
+
+    CRCLog_Info("START move_disc2cdrom auto");
+
+    (*pJson).Get("cdAddr",cd_addr);
+    
+    const char* ios_name = (*pJson)("iosName").c_str();
+    const char* cd_type  = (*pJson)("cdType").c_str();
+
+	if (access(ios_name,F_OK)!=0)
+	{
+		CRCLog::Error("%s is not exist!\n",ios_name);
+        retJson.Add("state", STATE_CODE_ERROR);
+        retJson.Add("date",  "iso name is not exist");
+		goto EXIT;
+	}
+
+    //验证是否是ISO文件
+    if (SVRUTILS::GetFsTypeLabel((char*)(ios_name),fstype,label))  {
+        CRCLog::Error("%s is not valid iso file !\n",ios_name);
+        retJson.Add("state", STATE_CODE_ERROR);
+        retJson.Add("date",  "iso valid iso file");
+        goto EXIT;
+    }
+
+    cd_addr = get_blank_disc(cd_addr, (char*)cd_type, SVRUTILS::GetFileSize(ios_name));
+	if (cd_addr<0)
+	{
+		CRCLog::Error("move_disc2cdrom :cann't find blank disc %s! cd_addr:%d \n",cd_type, cd_addr);
+        retJson.Add("state", STATE_CODE_ERROR);
+        retJson.Add("date",  "cann't find blank disc");
+		goto EXIT;
+	}
+    cd_addr += 1;
+
+    MOVEDISCTOCDROM:
+    {
+        //为整个动作枷锁
+        std::unique_lock<std::mutex> lock(m_action_mtx);            
+        cdrom_addr = move_disc2cdrom(cd_addr);
+    }
+    if (cdrom_addr == 0){
+        //如果没有找到可用的光驱，睡一会儿再试；
+        CRCLog_Warring("----WAITTING FOR AVAILABLE FREE CDROM FOR %d",cd_addr);
+        CRCThread::Sleep(1000*2);
+        goto MOVEDISCTOCDROM;
+    }
+
+    if (cdrom_addr == NODISC){
+        //delete mirror fs
+        sprintf(cmd_buf,"rm -Rf %s/%04d_*",SVRUTILS::LOGPATH,cd_addr);
+        SVRUTILS::SystemExec(cmd_buf);
+    }
+
+    CRCLog_Info("END process move_disc2cdrom, move disc:%d to cdrom:%d",cd_addr, cdrom_addr);    
+
+    retJson.Add("state", STATE_CODE_OK);
+
+    EXIT:
+    m_csCtrl.response(*pJson, retJson);    
+
+    //释放
+    delete pJson;
+
+    m_current_state = RUN;
+}
+
+int 
+MachineServer::get_blank_disc(int cd_addr, char*mediatype, unsigned long long minSize, bool isSet)
+{
+	int i,ret  = -1;
+	unsigned long long free_size  =0;
+	
+	char media_id[256];
+	SVRUTILS::SplitMediaTypeId(mediatype, media_id);
+	
+	if (!strncmp(mediatype,"BD128",5))
+	{
+		free_size = 128001769472;
+	}
+    else if (!strncmp(mediatype,"BD100",5))
+	{
+		free_size = 100103356416;
+	}
+    else if (!strncmp(mediatype,"BD50",4))
+	{
+		free_size = 50050629632;
+	}
+    else if (!strncmp(mediatype,"BD25",4))
+	{
+		free_size = 25025314816;
+	}
+    else if (!strncmp(mediatype,"DVD",3))
+	{
+		free_size = 4706074624;
+	}
+    else if (!strncmp(mediatype,"CDROM",5))
+	{
+		free_size = 715992000; 
+	}
+	printf("get_blank_disc:mediatype=%s,media_id=%s\n",mediatype,media_id); 
+	
+	if (minSize == 0){
+		minSize = free_size;
+	}
+	
+    std::unique_lock<std::mutex> lock(m_set_mtx);
+
+	//查找可用空盘
+	if ((cd_addr >0)&&(cd_addr<MAXSTATIONMEDIA))
+	{
+	
+		if (m_storage.media_attr[cd_addr-1].cdexist == PRESENCE)
+		{
+			if ((m_storage.media_attr[cd_addr-1].isblank == 1))
+			{
+				//dvd have multi size in china ,blu-ray is standard
+				if (labs(m_storage.media_attr[cd_addr-1].diskTypeInfo.media_track_freesize - free_size)< 1024*1024*20 
+					|| 
+                    (is_blank_BD_RE((SDiskTypeInfo*)&m_storage.media_attr[cd_addr-1].diskTypeInfo) && m_storage.media_attr[cd_addr-1].diskTypeInfo.media_track_freesize>= (1024*1024*20 + minSize)  ))
+				{
+					if (isSet)
+					{
+						m_storage.media_attr[cd_addr-1].isblank = 0;
+					}
+					ret = cd_addr-1;
+				}
+				
+			}
+		}
+	
+	}else{
+
+		for (i=0;i<MAXSTATIONMEDIA;i++)
+		{
+			if (m_storage.media_attr[i].cdexist == PRESENCE)
+			{
+				CRCLog::Debug("%d, BD-RE:%d, blank:%d, %s,%ld, %ld\n"
+					, i+1
+					, is_blank_BD_RE((SDiskTypeInfo*)&m_storage.media_attr[i].diskTypeInfo)
+					, m_storage.media_attr[i].isblank
+					, m_storage.media_attr[i].diskTypeInfo.media_type_str
+					, m_storage.media_attr[i].diskTypeInfo.media_track_freesize
+					, minSize);
+
+				if (m_storage.media_attr[i].isblank == 1)
+				{
+					if (m_storage.media_attr[i].slot_status != 'N'){
+						CRCLog::Info("slot_status of %d is not 'N' but '%c'\n", i, m_storage.media_attr[i].slot_status);
+						continue;
+					}
+
+					CRCLog::Info("i=%d,diskTypeInfo.media_id=%s\n",i,m_storage.media_attr[i].diskTypeInfo.media_id);
+					
+					if (strlen(media_id)>0 && strncmp(const_cast<char*>(m_storage.media_attr[i].diskTypeInfo.media_id), media_id, strlen(media_id)) != 0){
+						continue;
+					}
+
+			        CRCLog::Debug("%d, %s, BD-RE:%d, blank:%d, %s,%lld, %lld\n"
+                        , i+1
+					    , const_cast<char*>(m_storage.media_attr[i].diskTypeInfo.media_id)
+                        , is_blank_BD_RE((SDiskTypeInfo*)&m_storage.media_attr[i].diskTypeInfo)
+                        , m_storage.media_attr[i].isblank
+                        , m_storage.media_attr[i].diskTypeInfo.media_type_str
+                        , m_storage.media_attr[i].diskTypeInfo.media_track_freesize
+                        , minSize);
+
+					CRCLog::Info("i=%d,media_track_freesize=%llu,free_size=%llu,minSize=%llu,media_track_freesize - free_siz=%ld,(1024*1024*20 + minSize)=%llu\n",i,m_storage.media_attr[i].diskTypeInfo.media_track_freesize,free_size,minSize,labs(m_storage.media_attr[i].diskTypeInfo.media_track_freesize - free_size),(1024*1024*20 + minSize));  //20180612
+					CRCLog::Info("is_blank_BD_RE(&m_storage.media_attr[i].diskTypeInfo)=%d\n",is_blank_BD_RE((SDiskTypeInfo*)&m_storage.media_attr[i].diskTypeInfo));
+					
+					if (
+                        labs(m_storage.media_attr[i].diskTypeInfo.media_track_freesize - free_size)< 1024*1024*20 
+					    || 
+                        (is_blank_BD_RE((SDiskTypeInfo*)&m_storage.media_attr[i].diskTypeInfo) && m_storage.media_attr[i].diskTypeInfo.media_track_freesize >= (1024*1024*20 + minSize) ))
+					{
+						if (isSet)
+						{
+							m_storage.media_attr[i].isblank = 0;
+						}
+						ret = i;
+						break;
+					}	
+					
+				}
+			}
+		}
+		
+	}
+
+    lock.unlock();
+
+	if(ret < 0){
+        CRCLog::Warring("no blank disc to burn %s,%lld", mediatype, minSize);
+	}
+
+    return ret;
+}
+
 int 
 MachineServer::check_cdrom_status(const char * cdrom_dev)
 {
@@ -1213,7 +1429,7 @@ MachineServer::check_cd_cdrom(int cd_addr, int cdrom_addr, int md5_check)
 		return NOINFO;   
 	}
 
-    CRCLog_Debug("%d after GetMediaInfo(dev_name,&pDiskTypeInfo)\n",__LINE__);
+    CRCLog_Debug("%d after GetMediaInfo(dev_name,&diskTypeInfo)\n",__LINE__);
 
 	ret  =  cd_addr;
 
@@ -1379,7 +1595,7 @@ MachineServer::check_cd_cdrom(int cd_addr, int cdrom_addr, int md5_check)
 			m_storage.media_attr[cd_addr-1].media_addr  = cd_addr;
 			m_storage.media_attr[cd_addr-1].isblank     = 1;
 			CRCLog_Info("check_cd_cdrom: %d is  blank disk, %s  \n",cd_addr, diskTypeInfo.media_status_str);
-        }//!if ((!strcmp(diskTypeInfo.media_status_str,"blank"))|| isBlankBD_RE(&diskTypeInfo) )
+        }//!if ((!strcmp(diskTypeInfo.media_status_str,"blank"))|| is_blank_BD_RE(&diskTypeInfo) )
         else if (
                     (!strcmp(diskTypeInfo.media_last_session_status,"empty"))&&(!strcmp(diskTypeInfo.media_status_str,"appendable"))
                 )
@@ -1402,7 +1618,7 @@ MachineServer::check_cd_cdrom(int cd_addr, int cdrom_addr, int md5_check)
 			/* 设定全盘描述 */
 			m_storage.media_attr[cd_addr-1].media_addr = cd_addr;
 			CRCLog_Info("check_cd_cdrom: %d is  appendable blank disk  \n",cd_addr);
-        }//!if ((!strcmp(diskTypeInfo.media_status_str,"blank"))|| isBlankBD_RE(&diskTypeInfo) )::else if
+        }//!if ((!strcmp(diskTypeInfo.media_status_str,"blank"))|| is_blank_BD_RE(&diskTypeInfo) )::else if
         else 
         {
 			snprintf(cmd_buf,sizeof(cmd_buf),"%s/%04d_BadMedia",SVRUTILS::MIRRORPATH,cd_addr);
@@ -1421,7 +1637,7 @@ MachineServer::check_cd_cdrom(int cd_addr, int cdrom_addr, int md5_check)
 			CRCLog_Info("check_cd_cdrom: %d   is  DAMAGE disk\n",cd_addr);
 			/* 0 unknown ,1 blank 2 damage disk */
 			m_storage.media_attr[cd_addr-1].isblank = 2;
-        }//!if ((!strcmp(diskTypeInfo.media_status_str,"blank"))|| isBlankBD_RE(&diskTypeInfo) )::else
+        }//!if ((!strcmp(diskTypeInfo.media_status_str,"blank"))|| is_blank_BD_RE(&diskTypeInfo) )::else
     }
 
     m_storage.media_attr[cd_addr-1].ischecked = 1;

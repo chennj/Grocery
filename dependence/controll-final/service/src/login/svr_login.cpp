@@ -9,7 +9,7 @@ LoginServer::Init()
 
     m_csGate.set_groupId("0001");
 
-    m_csGate.connect("csCtrl","ws://192.168.137.129:4567", 1024 * 1024 * 10, 1024 * 1024 * 10);
+    m_csGate.connect("csCtrl","ws://192.168.8.109:4567", 1024 * 1024 * 10, 1024 * 1024 * 10);
 
     m_csGate.reg_msg_call("onopen", std::bind(&LoginServer::onopen_csCtrl, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -265,15 +265,14 @@ LoginServer::ss_msg_client_exit(CRCNetClientC* client, CRCJson& msg)
 
     //判断是否登录过
     //在线验证
-    /*
-    auto user = _userManager.get_by_clientId(clientId);
+    auto user = m_userManager.get_by_clientId(clientId);
     if (user)
     {
         //设置user为离线状态
         user->offline();
         //移除用户记录
         //_userManager.remove(user);
-    }*/
+    }
 }
 
 void 

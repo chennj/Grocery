@@ -36,17 +36,17 @@ class CRCLog
 private:
 	CRCLog()
 	{
-		_taskServer.Start();
+		m_taskServer.Start();
 	}
 
 	~CRCLog()
 	{
-		_taskServer.Close();
-		if (_logFile)
+		m_taskServer.Close();
+		if (m_logFile)
 		{
-			Info("CRCLog fclose(_logFile)");
-			fclose(_logFile);
-			_logFile = nullptr;
+			Info("CRCLog fclose(m_logFile)");
+			fclose(m_logFile);
+			m_logFile = nullptr;
 		}
 	}
 public:
@@ -56,36 +56,65 @@ public:
 		return sLog;
 	}
 
-	void setLogPath(const char* logName, const char* mode, bool hasDate)
+	void changLogPath()
 	{
-		if (_logFile)
+		char		newPath[128]	= {};
+		auto		t				= std::chrono::system_clock::now();
+		auto		tNow			= std::chrono::system_clock::to_time_t(t);
+		std::tm*	now				= std::localtime(&tNow);
+
+		sprintf(newPath, "%s-%d-%d-%d.txt", m_logNamePre, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
+
+		std::unique_lock<std::mutex> lock(m_mutex);
+		if (strcmp(newPath, m_logPath) != 0) 
+		{
+			if (m_logFile)
+			{
+				fclose(m_logFile);
+				m_logFile = nullptr;
+			}
+			memset(m_logPath, 0, sizeof(m_logPath));
+			strcpy(m_logPath, newPath);
+
+			m_logFile = fopen(m_logPath, "w");
+			if (!m_logFile)
+			{
+				Info("CRCLog::setLogPath failed,<%s,%s>", m_logPath, "w");
+			}
+		}
+	}
+
+	void setLogPath(const char* logName, const char* mode, bool hasDate = true)
+	{
+		if (m_logFile)
 		{
 			Info("CRCLog::setLogPath _logFile != nullptr");
-			fclose(_logFile);
-			_logFile = nullptr;
+			fclose(m_logFile);
+			m_logFile = nullptr;
 		}
-		//
-		char logPath[256] = {};
-		//
+
+		strcpy(m_logNamePre, logName);
+
 		if (hasDate)
 		{
-			auto t = std::chrono::system_clock::now();
-			auto tNow = std::chrono::system_clock::to_time_t(t);
-			std::tm* now = std::localtime(&tNow);
-			sprintf(logPath, "%s[%d-%d-%d_%d-%d-%d].txt", logName, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
+			auto t			= std::chrono::system_clock::now();
+			auto tNow		= std::chrono::system_clock::to_time_t(t);
+			std::tm* now	= std::localtime(&tNow);
+			//sprintf(logPath, "%s[%d-%d-%d_%d-%d-%d].txt", logName, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
+			sprintf(m_logPath, "%s-%d-%d-%d.txt", m_logNamePre, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
 		}
 		else {
-			sprintf(logPath, "%s.txt", logName);
+			sprintf(m_logPath, "%s.txt", m_logNamePre);
 		}
 
 		//
-		_logFile = fopen(logPath, mode);
-		if (_logFile)
+		m_logFile = fopen(m_logPath, mode);
+		if (m_logFile)
 		{
-			Info("CRCLog::setLogPath success,<%s,%s>", logPath, mode);
+			Info("CRCLog::setLogPath success,<%s,%s>", m_logPath, mode);
 		}
 		else {
-			Info("CRCLog::setLogPath failed,<%s,%s>", logPath, mode);
+			Info("CRCLog::setLogPath failed,<%s,%s>", m_logPath, mode);
 		}
 	}
 
@@ -101,7 +130,7 @@ public:
 #ifdef _WIN32
 		auto errCode = GetLastError();
 
-		Instance()._taskServer.addTask([errCode,logStr]() {
+		Instance().m_taskServer.addTask([errCode, logStr]() {
 
 			char text[256] = {};
 			FormatMessageA(
@@ -112,13 +141,13 @@ public:
 				(LPSTR)&text, 256, NULL
 			);
 
-			EchoReal(true, "PError ", "%s", logStr);
+			EchoReal(true,	"PError ", "%s", logStr);
 			EchoReal(false, "PError ", "errno=%d,errmsg=%s", errCode, text);
 			delete[] logStr;
 		});
 #else
 		auto errCode = errno;
-		Instance()._taskServer.addTask([errCode, logStr]() {
+		Instance().m_taskServer.addTask([errCode, logStr]() {
 			EchoReal(true, "PError ", "%s", logStr);
 			EchoReal(true, "PError ", "errno<%d>,errmsg<%s>", errCode, strerror(errCode));
 			delete[] logStr;
@@ -173,9 +202,10 @@ public:
 	template<typename ...Args>
 	static void Echo(const char* type, const char* pformat, Args ... args)
 	{
-		char* logStr = newFormatStr(pformat, args...);
-		CRCLog* pLog = &Instance();
-		pLog->_taskServer.addTask([type, logStr]() {
+		char*	logStr	= newFormatStr(pformat, args...);
+		CRCLog* pLog	= &Instance();
+
+		pLog->m_taskServer.addTask([type, logStr]() {
 			EchoReal(true, type, "%s", logStr);
 			delete[] logStr;
 		});
@@ -185,26 +215,34 @@ public:
 	static void EchoReal(bool br, const char* type, const char* pformat, Args ... args)
 	{
 		CRCLog* pLog = &Instance();
-		if (pLog->_logFile)
+
+		pLog->changLogPath();
+
+		if (pLog->m_logFile)
 		{
-			auto t = system_clock::now();
-			auto tNow = system_clock::to_time_t(t);
+			auto t		= std::chrono::system_clock::now();
+			auto tNow	= std::chrono::system_clock::to_time_t(t);
 			//fprintf(pLog->_logFile, "%s", ctime(&tNow));
 			std::tm* now = std::localtime(&tNow);
-			if (type)
-				fprintf(pLog->_logFile, "%s", type);
-			fprintf(pLog->_logFile, "[%d-%d-%d %d:%d:%d]", now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
-			fprintf(pLog->_logFile, pformat, args...);
-			if (br)
-				fprintf(pLog->_logFile, "%s", "\n");
-			fflush(pLog->_logFile);
+			if (type) {
+				fprintf(pLog->m_logFile, "%s", type);
+			}
+			fprintf(pLog->m_logFile, "[%d-%d-%d %d:%d:%d]", now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
+			fprintf(pLog->m_logFile, pformat, args...);
+			if (br) {
+				fprintf(pLog->m_logFile, "%s", "\n");
+			}
+			fflush(pLog->m_logFile);
 
 		}
-		if (type)
+		if (type) {
 			printf("%s", type);
+		}
+
 		printf(pformat, args...);
-		if (br)
+		if (br) {
 			printf("%s", "\n");
+		}
 	}
 
 	//返回的指针一定要delete[]
@@ -213,14 +251,18 @@ public:
 	{
 		//计算格式化字符串所需要的char字符数量
 		//+1是为'\0'预留位置
-		size_t n = 1 + std::snprintf(nullptr, 0, pformat, args...);
-		char* pFormatStr = new char[n];
+		size_t n			= 1 + std::snprintf(nullptr, 0, pformat, args...);
+		char* pFormatStr	= new char[n];
+
 		std::snprintf(pFormatStr, n, pformat, args...);
 		return pFormatStr;
 	}
 private:
-	FILE * _logFile = nullptr;
-	CRCTaskServer _taskServer;
+	FILE *			m_logFile			= nullptr;
+	char			m_logPath[128]		= {};
+	char			m_logNamePre[64]	= {};
+	CRCTaskServer	m_taskServer;
+	std::mutex		m_mutex;
 };
 
 #endif //!_CRC_LOG_H_
