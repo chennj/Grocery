@@ -1,6 +1,0 @@
-D:\test\startup.bat|26
-D:\test\appCfg\video-server-common.properties|24
-D:\test\video\panda.mp4|7076471
-D:\test\使用说明.txt|525
-D:\test\video-server.jar|48051845
-D:\test\video\toystory.mp4|33505479

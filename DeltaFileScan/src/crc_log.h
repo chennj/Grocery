@@ -67,7 +67,7 @@ public:
 
 		sprintf(newPath, "%s-%d-%d-%d.txt", m_logNamePre, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
 
-		std::unique_lock lock(m_mutex);
+		std::unique_lock<std::mutex> lock(m_mutex);
 		if (strcmp(newPath, m_logPath) != 0) 
 		{
 			if (m_logFile)
@@ -149,7 +149,7 @@ public:
 		});
 #else
 		auto errCode = errno;
-		Instance()._taskServer.addTask([errCode, logStr]() {
+		Instance().m_taskServer.addTask([errCode, logStr]() {
 			EchoReal(true, "PError ", "%s", logStr);
 			EchoReal(true, "PError ", "errno<%d>,errmsg<%s>", errCode, strerror(errCode));
 			delete[] logStr;

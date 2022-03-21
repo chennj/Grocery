@@ -29,7 +29,7 @@ private:
 
     bool wait_for(std::condition_variable& condition, const std::string& msg, uint32_t timeout = 60 * 1000);
 
-    int  ctl_msg_burn_iso_file(CRCNetClientC* client, CRCJson& msg);
+    int  ctl_nl_burn_iso_file(CRCNetClientC* client, CRCJson& msg);
     
 };
 

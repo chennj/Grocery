@@ -14,9 +14,9 @@ CC			= gcc
 LIBS		= -lpthread -ldl
 FLAGS		= -Wall -fpermissive
 
-SERVER		= loginserver
+SERVER		= mkisoserver
 SERVERSRC 	= \
-			svr_login_main.cpp svr_login.cpp \
+			svr_mkiso_main.cpp svr_mkiso.cpp \
 			$(SRC)/net/*.cpp \
 			$(SRC)/db/*.cpp \
 			$(DEPEND)/threadpool/crc_thread_pool.cpp \
@@ -30,7 +30,7 @@ $(SERVER):
 	$(CC)  -c $(DEPEND)/thrd-sqlite/sqlite3.c
 	$(CC)  -c $(DEPEND)/thrd-sqlite/shell.c
 	$(CXX) -c $(DEPEND)/thrd-sqlite/CppSQLite3.cpp
-
+	
 	$(CXX) -g -o $(SERVER) -std=c++11 $(SERVERSRC) $(INCLUDE) $(LIBS) $(FLAGS)
 
 .PHONY: clean
@@ -38,4 +38,3 @@ clean:
 	rm -rf $(SERVER) 
 	rm -rf *.txt
 	rm -rf *.o
-	rm -rf *.db

@@ -20,8 +20,8 @@ private:
     std::string m_link_type = "client";
     std::string m_link_group = "0000";
 
-    bool m_is_ss_link = false;
-    bool m_is_cc_link = false;
+    bool m_is_ss_link  = false;
+    bool m_is_cc_link  = false;
 
     //
     std::string m_token;

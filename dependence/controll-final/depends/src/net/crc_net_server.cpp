@@ -245,7 +245,8 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         bool is_cc = false;
         json.Get("is_cc", is_cc);
         if (!is_cc)
-        {//非LinkGate转发的请求，才做以下处理
+        //非LinkGate转发的请求，才做以下处理
+        {
             if (pWSClient->is_login())
             {
                 json.Add("userId", pWSClient->userId());
@@ -255,6 +256,11 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
             {
                 json.Add("is_ss_link", true, true);
             }
+        }
+        else
+        //如果是客户端直接连接
+        {
+            pWSClient->is_cc_link(true);          
         }
 
         //网关本地支持的指令
@@ -267,11 +273,21 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         {
             std::string gpidcmd = groupId + ":" + cmd;
             on_other_msg(pServer, pWSClient, gpidcmd, json);
+            return;
         }
-        //for test ignore check
-        else{
-            std::string gpidcmd = groupId + ":" + cmd;
-            on_other_msg(pServer, pWSClient, gpidcmd, json);
+
+        //如果是通过控制器执行业务
+        std::string proxy_ctl;
+        if (!json.Get("proxy_ctl", proxy_ctl))
+        {
+            CRCLog_Warring("not found key<proxy_ctl>.");
+        } else {
+            if (proxy_ctl.compare("nlctroller") == 0){
+                std::string gpidcmd = "0000:" + cmd;
+                on_other_msg(pServer, pWSClient, gpidcmd, json);
+                return;
+            }
+            CRCLog_Warring("not found controller<s%>.",proxy_ctl.c_str());
         }
 
         return;
