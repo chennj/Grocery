@@ -168,7 +168,7 @@ CRCNetClientC::connect(const char* link_name,const char* url, int s_size, int r_
         std::string dataStr(pStr, wsh.len);
         //CRCLog_Info("websocket server say: %s", dataStr.c_str());
 
-        neb::CJsonObject json;
+        CRCJson json;
         if (!json.Parse(dataStr))
         {
             CRCLog_Error("json.Parse error : %s", json.GetErrMsg().c_str());
@@ -239,7 +239,7 @@ CRCNetClientC::connect(const char* link_name,const char* url, int s_size, int r_
 
     m_client.onerror = [this](CRCClientCWebSocket* pWSClient)
     {
-        neb::CJsonObject json;
+        CRCJson json;
         json.Add("link_name",   m_link_name);
         json.Add("url",         m_url);
         
@@ -339,7 +339,14 @@ CRCNetClientC::on_net_msg_do(int msgId, CRCJson& msgJson)
     if (itr != m_map_request_call.end())
     {
         itr->second.callFun(this, msgJson);
-        m_map_request_call.erase(itr);
+        int state = STATE_CODE_OK;
+        if (!msgJson.Get("state", state)) { 
+            m_map_request_call.erase(itr);
+        } else {
+            if (state != STATE_CODE_PROCESSING){
+                m_map_request_call.erase(itr);
+            }
+        }        
         return true;
     }
     CRCLog_Info("%s::CRCNetClientC::on_net_msg_do not found msgId<%d>.", m_link_name.c_str(), msgId);

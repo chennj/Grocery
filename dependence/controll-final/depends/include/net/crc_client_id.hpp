@@ -14,6 +14,7 @@
 #define STATE_CODE_UNDEFINE_CMD     3
 #define STATE_CODE_SERVER_BUSY      4
 #define STATE_CODE_SERVER_OFF       5
+#define STATE_CODE_PROCESSING       6
 
 class ClientId
 {

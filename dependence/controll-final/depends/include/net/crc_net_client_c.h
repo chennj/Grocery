@@ -24,7 +24,7 @@ private:
     //心跳计时器
     CRCTimestamp            m_time2heart;
     //从发送请求起_timeout_dt毫秒会触发超时
-    time_t                  m_timeout_dt = 5000;
+    time_t                  m_timeout_dt = 15000;
     //
     std::string             m_link_name;
     //
@@ -129,6 +129,8 @@ public:
             calldata.callFun            = call;
             calldata.dt                 = CRCTime::system_clock_now();
             m_map_request_call[m_msgId] = calldata;
+
+            CRCLog_Info("callback msgId <%d>", m_msgId);
         }
         return true;
     }
@@ -183,6 +185,8 @@ public:
             CRCLog_Error("INetClient::transfer::response not found key<msgId>.");
             return;
         }
+
+        CRCLog_Info("response clientId <%d>, msgId <%d>", clientId, msgId);
 
         response(clientId, msgId, data, state);
     }

@@ -95,14 +95,13 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         CRCLog_Error("not found key<time>.");
         return;
     }
-    */
 
     std::string groupId;
     if (!json.Get("groupId", groupId))
     {
         CRCLog_Error("not found key<groupId>.");
         return;
-    }
+    }*/
 
     int msg_type = 0;
     if (!json.Get("type", msg_type))
@@ -224,6 +223,13 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
     //服务端请求
     if (MSG_TYPE_REQ == msg_type)
     {
+        std::string groupId;
+        if (!json.Get("groupId", groupId))
+        {
+            CRCLog_Error("not found key<groupId>.");
+            return;
+        }
+
         std::string cmd;
         if (!json.Get("cmd", cmd))
         {
@@ -233,7 +239,7 @@ CRCNetServer::OnNetMsgWS(CRCWorkServer* pServer, CRCNetClientS* pWSClient)
         //
         int clientId = 0;
         if (!json.Get("clientId", clientId))
-        {//
+        {
             json.Add("clientId", pWSClient->clientId());
         }
         else {
