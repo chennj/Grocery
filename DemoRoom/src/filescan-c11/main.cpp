@@ -17,6 +17,7 @@
 //usage:
 //./scanfile /home/chennj/mycode/srs-rtmp-server/srs-0.1.0 
 //./scanfile /home/chennj/mycode/srs-rtmp-server/srs-0.1.0 10
+#if __LINUX__
 #include "scanfile_threads.h"
 #include <chrono>
 
@@ -39,3 +40,5 @@ int main(int argc, char* argv[])
 
     return 0;
 }
+
+#endif

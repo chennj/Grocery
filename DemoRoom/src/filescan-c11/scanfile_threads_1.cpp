@@ -1,3 +1,4 @@
+#if 0
 #include "dirmgr.hpp"
 #include <filesystem>
 #include <iostream>
@@ -8,62 +9,63 @@ void DirManager::check_dirs()
 {
     try
     {
-15       if (!(_NS_fs::exists("in")))
-16          _NS_fs::create_directory("in");
-17       if (!(_NS_fs::exists("out")))
-18          _NS_fs::create_directory("out");
-19    }
-20    catch (const exception &e)
-21    {
-22       cout << "Error on trying to create [in]/[out] directories." << endl;
-23       cerr << e.what() << endl;
-24       exit(EXIT_FAILURE);
-25    }
-26 }
+      if (!(_NS_fs::exists("in")))
+         _NS_fs::create_directory("in");
+      if (!(_NS_fs::exists("out")))
+         _NS_fs::create_directory("out");
+	}
+	catch (const exception &e)
+	{
+      cout << "Error on trying to create [in]/[out] directories." << endl;
+      cerr << e.what() << endl;
+      exit(EXIT_FAILURE);
+	}
+}
 
-40 bool DirManager::start_watching(string path)
-41 {
-42    try
-43    {
-44       thread* obj_th = new thread(&DirManager::watching_task, this, path);
-45       this->obj_linked_thd = obj_th;
-46       return true;
-47    }
-48    catch (const std::exception &e)
-49    {
-50       std::cerr << e.what() << '\n';
-51       return false;
-52    }
-53 }
+bool DirManager::start_watching(string path)
+{
+   try
+   {
+      thread* obj_th = new thread(&DirManager::watching_task, this, path);
+      this->obj_linked_thd = obj_th;
+      return true;
+   }
+   catch (const std::exception &e)
+   {
+      std::cerr << e.what() << '\n';
+      return false;
+   }
+}
 
-6 DirManager::~DirManager()
-7 {
-8    this->obj_linked_thd->join();
-9    delete this->obj_linked_thd;
-10 }
+DirManager::~DirManager()
+{
+   this->obj_linked_thd->join();
+   delete this->obj_linked_thd;
+}
 
-27 void DirManager::watching_task(string path)
-28 {
-29    int files_count = this->count_items(path);
-30    while (!this->stop_flag)
-31    {
-32       this_thread::sleep_for(chrono::seconds(3));
-33       cout << "Monitoring [in] directory, interval 3 secs." << endl;
-34       if (this->count_items(path) > files_count)
-35          cout << "New file created." << endl;
-36       files_count = this->count_items(path);
-37    }
-38    cout << "Monitor finished." << endl;
-39 }
+void DirManager::watching_task(string path)
+{
+   int files_count = this->count_items(path);
+   while (!this->stop_flag)
+   {
+      this_thread::sleep_for(chrono::seconds(3));
+      cout << "Monitoring [in] directory, interval 3 secs." << endl;
+      if (this->count_items(path) > files_count)
+         cout << "New file created." << endl;
+      files_count = this->count_items(path);
+   }
+   cout << "Monitor finished." << endl;
+}
 
-58 int DirManager::count_items(string path)
-59 {
-60    int items = 0;
-61    for (auto& p : _NS_fs::directory_iterator(path))
-62    {
-63       if (_NS_fs::is_regular_file(p.path()))
-64          items++;
-65    }
-66    return items;
-67 }
+int DirManager::count_items(string path)
+{
+   int items = 0;
+   for (auto& p : _NS_fs::directory_iterator(path))
+   {
+      if (_NS_fs::is_regular_file(p.path()))
+         items++;
+   }
+   return items;
+}
+#endif
 

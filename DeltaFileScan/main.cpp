@@ -17,6 +17,8 @@ volatile unsigned int g_instance = 0;//共享数据必须初始化，否则微�
 #include "crc_scanfile_threads.h"
 #include <chrono>
 #include <algorithm>
+#include <locale>
+#include <codecvt>
 
 #define	LYMD	8
 #define LHMS	6
@@ -68,6 +70,21 @@ bool			MyCopyFile(const string& from, const string& to);		//filesystem的copy文
 bool			IsDirectoryChangging(const string& dir);
 vector<string>	Split(const string &str, const string &pattern);
 //----------------------------------------------------
+
+//----------------------------------------------------
+void STRING_TO_WSTRING(std::wstring& szDst, std::string str)
+{
+	std::string temp = str;
+	int len = MultiByteToWideChar(CP_ACP, 0, (LPCSTR)temp.c_str(), -1, NULL, 0);
+	wchar_t * wszUtf8 = new wchar_t[len + 1];
+	memset(wszUtf8, 0, len * 2 + 2);
+	MultiByteToWideChar(CP_ACP, 0, (LPCSTR)temp.c_str(), -1, (LPWSTR)wszUtf8, len);
+	szDst = wszUtf8;
+	std::wstring r = wszUtf8;
+	delete[] wszUtf8;
+}
+
+//---------------------------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
 	//单一进程
@@ -521,7 +538,8 @@ int main(int argc, char* argv[])
 		{
 			char tmpdate[32] = { 0 };
 			strftime(tmpdate, sizeof(tmpdate), "%Y-%m-%d %H:%M:%S", localtime(&tt));
-			ofstream fout(printFile);
+			wofstream fout(printFile, ios::ate);
+			fout.imbue(std::locale(fout.getloc(), new std::codecvt_utf8<wchar_t, 0x10ffff, std::little_endian>));
 
 			fout << "<!DOCTYPE HTML>" << endl;
 			fout << "<html>" << endl;
@@ -530,7 +548,9 @@ int main(int argc, char* argv[])
 			fout << "</head>" << endl;
 			fout << "<body>" << endl;
 			fout << "<div style=\"line - height:15px; font - size:16px; padding:60px 5px 5px 160px; font - family:'宋体'; text - align:center; \">" << endl;
-			fout << "<p>" << PRINT_LABEL.c_str() << "</p>" << endl;
+			wstring wpl;
+			STRING_TO_WSTRING(wpl, PRINT_LABEL);
+			fout << "<p>" << wpl << "</p>" << endl;
 			fout << "<p>" << tmpdate << "</p>" << endl;
 			fout << "</div>" << endl;
 			fout << "</body>" << endl;
@@ -541,8 +561,10 @@ int main(int argc, char* argv[])
 		{
 			char tmpdate[32] = { 0 };
 			strftime(tmpdate, sizeof(tmpdate), "%Y%m%d%H%M%S", localtime(&tt));
-			ofstream fout(burnFile);
-			fout << DISC_TYPE << endl;
+			wofstream fout(burnFile, ios::ate);
+			fout.imbue(std::locale(fout.getloc(), new std::codecvt_utf8<wchar_t, 0x10ffff, std::little_endian>));
+
+			fout << DISC_TYPE.c_str() << endl;
 			fout << VOLUME_LABEL.c_str() << tmpdate << endl;
 			fout.close();
 		}

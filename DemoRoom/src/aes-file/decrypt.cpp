@@ -1,4 +1,5 @@
 //g++  -o decrypt decrypt.cpp -L/usr/lib -lssl -lcrypto
+#if 0
 #include <openssl/aes.h>
 #include <stdio.h>
 
@@ -37,3 +38,4 @@ int main() {
 			break;
 	}
 }
+#endif

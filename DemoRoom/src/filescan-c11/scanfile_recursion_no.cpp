@@ -1,4 +1,5 @@
 //g++ -o scanfile scanfile.cpp
+#if __LINUX__
 #include <iostream>
 #include <string>
 #include <vector>
@@ -198,3 +199,4 @@ int main()
     delete tmp;
     return 0;
 }
+#endif

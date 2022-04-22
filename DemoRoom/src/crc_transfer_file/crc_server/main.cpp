@@ -1,3 +1,4 @@
+#if 0
 #include "crc_transfer_file_server.h"
 
 int main(int argc, char** argv)
@@ -16,3 +17,4 @@ int main(int argc, char** argv)
 
     return 0;
 }
+#endif

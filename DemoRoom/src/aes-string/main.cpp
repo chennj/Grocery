@@ -1,4 +1,5 @@
 //g++ -std=c++11 -o aes main.cpp aes.cpp -I./ -L/usr/lib -lssl -lcrypto
+#if __LINUX__
 #include <openssl/aes.h>
 #include <stdio.h>
 
@@ -36,3 +37,5 @@ int main() {
 		if (bytes_read < AES_BLOCK_SIZE)
 			break;
 	}
+}
+#endif

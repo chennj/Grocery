@@ -5,6 +5,7 @@
 ** Date         : 2011-12 
 ** Description  : CRC32 Checking 
 ******************************************************/ 
+#if __LINUX__
 #ifndef _GZSHUN_CKSUM_H_
 #define _GZSHUN_CKSUM_H_
 
@@ -132,4 +133,6 @@ public:
 
 unsigned int
 GZCRC32::crc_table[256] = {0};
+#endif
+
 #endif

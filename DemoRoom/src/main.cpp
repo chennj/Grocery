@@ -1,6 +1,7 @@
 #include "common/Base.h"
 #include "algorithm/DP/Solution.h"
 #include <Windows.h>
+#include <fstream>
 
 #define THREADPOOL 0
 #if		THREADPOOL	//线程池
@@ -526,7 +527,16 @@ void print_is_same() {
 	std::cout << std::is_same<T1, T2>() << '\n';
 };
 
-#define CPP_INTERVIEW 1
+#define CPP_INTERVIEW 0
+
+#define STRING_TO_UTF8 1
+
+#if STRING_TO_UTF8
+#include <chrono>
+#include <algorithm>
+#include <locale>
+#include <codecvt>
+#endif
 
 int main()
 {
@@ -802,5 +812,35 @@ int main()
 #if CPP_INTERVIEW
 	std::cout << 25u - 50 << std::endl;
 	return 0;
+#endif
+
+#if STRING_TO_UTF8
+
+	std::string printFile = "printfile.html";
+	std::string printLabel = "陆军军医大学教学考评中心考试档案";
+
+	time_t	tt = time(0);
+
+	char tmpdate[32] = { 0 };
+	strftime(tmpdate, sizeof(tmpdate), "%Y-%m-%d %H:%M:%S", localtime(&tt));
+	std::wofstream fout(printFile, std::ios::ate);
+	fout.imbue(std::locale(fout.getloc(), new std::codecvt_utf8<wchar_t, 0x10ffff, std::little_endian>));
+
+	fout << "<!DOCTYPE HTML>" << std::endl;
+	fout << "<html>" << std::endl;
+	fout << "<head>" << std::endl;
+	fout << "<meta http-equiv=\"Content - Type\" content=\"text / html; charset = utf - 8\"/>" << std::endl;
+	fout << "</head>" << std::endl;
+	fout << "<body>" << std::endl;
+	fout << "<div style=\"line - height:15px; font - size:16px; padding:60px 5px 5px 160px; font - family:'宋体'; text - align:center; \">" << std::endl;
+	std::wstring wsTmp;
+	StringToWstring(wsTmp, printLabel);
+	fout << "<p>" << wsTmp << "</p>" << std::endl;
+	fout << "<p>" << tmpdate << "</p>" << std::endl;
+	fout << "</div>" << std::endl;
+	fout << "</body>" << std::endl;
+	fout << "</html>" << std::endl;
+	fout.close();
+
 #endif
 }

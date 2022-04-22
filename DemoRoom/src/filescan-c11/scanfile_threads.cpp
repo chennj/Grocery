@@ -5,6 +5,7 @@
 ** Date         : 2021-11-11
 ** Description  : 多线程文件扫描
 ******************************************************/ 
+#if __LINUX__
 #include "scanfile_threads.h"
 //#include "crc32.hpp"
 #include "cksum.hpp"
@@ -288,3 +289,5 @@ void DisplayLocalIp()
 	if (ifAddrStruct != NULL)
 		freeifaddrs(ifAddrStruct);
 }
+
+#endif

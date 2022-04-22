@@ -1,6 +1,7 @@
 //编译命令
 //export LD_LIBRARY_PATH=/usr/local/mysql/lib:LD_LIBRARY_PATH
 //gcc -g -static -o tools_hdd crc_tools_hdd.cpp -lmysqlclient -I/usr/local/mysql/include -L/usr/local/mysql/lib
+#if __LINUX__
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
@@ -322,3 +323,4 @@ int main(int argc,char* args[])
     mysql_close(_mysql);
     return 0;
 }
+#endif
